@@ -1,0 +1,29 @@
+# ============================================================================
+# Konnect Configuration
+# ============================================================================
+# Copy this file to terraform.tfvars and fill in your values
+
+konnect_server_url = "https://us.api.konghq.com"
+# konnect_token      = "YOUR_KONNECT_PAT"
+
+# ============================================================================
+# Event Gateway Configuration
+# ============================================================================
+
+event_gateway_name = "sko-event-gateway"
+
+backend_cluster_bootstrap_servers = [
+  "kafka1:9092",
+  "kafka2:9092",
+  "kafka3:9092"
+]
+
+# ============================================================================
+# Authentication Configuration
+# ============================================================================
+# These values come from your external auth server (e.g. Kong Identity)
+
+jwks_endpoint = "https://YOUR_AUTH_SERVER_ISSUER/.well-known/jwks"
+client_id_1   = "YOUR_CLIENT_ID_1"
+client_id_2   = "YOUR_CLIENT_ID_2"
+
