@@ -19,6 +19,13 @@ backend_cluster_bootstrap_servers = [
 ]
 
 # ============================================================================
+# Docker / Data Plane Configuration
+# ============================================================================
+
+konnect_region = "us"
+konnect_domain = "konghq.com"
+
+# ============================================================================
 # Authentication Configuration
 # ============================================================================
 # These values come from your external auth server (e.g. Kong Identity)

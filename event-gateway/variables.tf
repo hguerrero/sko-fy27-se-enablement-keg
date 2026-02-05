@@ -35,6 +35,34 @@ variable "backend_cluster_bootstrap_servers" {
 }
 
 # ============================================================================
+# Docker / Data Plane Configuration
+# ============================================================================
+
+variable "konnect_region" {
+  type        = string
+  description = "Konnect region for the data plane (e.g. us, eu)"
+  default     = "us"
+}
+
+variable "konnect_domain" {
+  type        = string
+  description = "Konnect domain for the data plane"
+  default     = "konghq.com"
+}
+
+variable "kafka_username" {
+  type        = string
+  description = "Kafka username for backend cluster authentication"
+  sensitive   = true
+}
+
+variable "kafka_password" {
+  type        = string
+  description = "Kafka password for backend cluster authentication"
+  sensitive   = true
+}
+
+# ============================================================================
 # Authentication Configuration
 # ============================================================================
 

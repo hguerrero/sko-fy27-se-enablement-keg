@@ -29,5 +29,8 @@ Thumbs.db
 .env
 .env.local
 
+# Certificate files
+**/certs/
+
 konnect.env
 
