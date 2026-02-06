@@ -108,3 +108,39 @@ resource "docker_container" "apicurio_registry_ui" {
     docker_container.apicurio_registry
   ]
 }
+
+# ============================================================================
+# Register JSON Schema in Apicurio Registry
+# ============================================================================
+
+resource "terraform_data" "register_schema" {
+  # Re-register if the schema file changes
+  input = filesha256("${path.module}/../schema.json")
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo "Waiting for Apicurio Registry to be ready..."
+      for i in $(seq 1 30); do
+        if curl -s -o /dev/null -w "%%{http_code}" http://localhost:8080/apis/ccompat/v7/subjects | grep -q "200"; then
+          echo "Apicurio Registry (Confluent compat) is ready."
+          break
+        fi
+        echo "Attempt $i/30 - Registry not ready yet, waiting 5s..."
+        sleep 5
+      done
+
+      echo "Registering JSON schema via Confluent-compatible API..."
+      curl -X POST \
+        -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+        --data '{"schema": ${jsonencode(file("${path.module}/../schema.json"))}, "schemaType": "JSON"}' \
+        http://localhost:8080/apis/ccompat/v7/subjects/machine-status-value/versions
+
+      echo ""
+      echo "Schema registration complete."
+    EOT
+  }
+
+  depends_on = [
+    docker_container.apicurio_registry
+  ]
+}

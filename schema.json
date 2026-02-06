@@ -1,0 +1,10 @@
+{
+  "type": "object",
+  "properties": {
+    "protocol_id": { "type": "string" },
+    "machine_id": { "type": "integer" },
+    "status": { "enum": ["ACTIVE", "PURGING", "OPTIMIZED"] }
+  },
+  "required": ["protocol_id", "machine_id", "status"],
+  "additionalProperties": false
+}

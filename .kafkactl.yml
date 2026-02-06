@@ -8,6 +8,13 @@ contexts:
     sim-la:
       brokers:
         - localhost:19292
+    redpill:
+      brokers:
+        - localhost:19292
+      sasl:
+        enabled: true
+        username: redpill-rebels
+        password: secret
     user1:
       brokers:
         - localhost:19092
