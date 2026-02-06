@@ -8,7 +8,7 @@ resource "docker_network" "keg_network" {
 
 # Pull the Kong Event Gateway image
 resource "docker_image" "keg" {
-  name         = "kong/kong-event-gateway:latest"
+  name         = "kong/kong-event-gateway-dev:latest"
   keep_locally = true
 }
 
@@ -25,6 +25,7 @@ resource "docker_container" "keg_data_plane" {
     "KONNECT_CLIENT_KEY=${tls_private_key.keg_data_plane.private_key_pem}",
     "KAFKA_USERNAME=${var.kafka_username}",
     "KAFKA_PASSWORD=${var.kafka_password}",
+    "KEG__OBSERVABILITY__LOG_FLAGS=info,keg=debug"
   ]
 
   # Port range 19092-19390 mapped 1:1

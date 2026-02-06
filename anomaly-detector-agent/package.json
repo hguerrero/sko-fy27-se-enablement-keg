@@ -1,0 +1,21 @@
+{
+  "name": "anomaly-detector-agent",
+  "version": "1.0.0",
+  "description": "Matrix anomaly detector agent — monitors machine status events via KEG and enriches them with LLM-powered analysis",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "volcano-sdk": "^1.1.0",
+    "kafkajs": "^2.2.4"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "@types/node": "^22.15.0"
+  }
+}
+

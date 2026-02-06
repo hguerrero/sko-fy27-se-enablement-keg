@@ -1,4 +1,7 @@
 contexts:
+    default:
+      brokers:
+        - localhost:9092
     machine-core:
       brokers:
         - localhost:19092

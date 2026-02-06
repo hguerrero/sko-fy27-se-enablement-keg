@@ -43,17 +43,22 @@ resource "konnect_event_gateway_backend_cluster" "backend_cluster" {
     clearance = "maximum"
   }
 
+  # authentication = {
+  #   sasl_plain = {
+  #     username = "$${env['KAFKA_USERNAME']}"
+  #     password = "$${env['KAFKA_PASSWORD']}"
+  #   }
+  # }
   authentication = {
-    sasl_plain = {
-      username = "$${env['KAFKA_USERNAME']}"
-      password = "$${env['KAFKA_PASSWORD']}"
+    anonymous = {
     }
   }
 
   bootstrap_servers = var.backend_cluster_bootstrap_servers
 
   tls = {
-    enabled = true
+    enabled = false
+    # enabled = true
   }
 
   insecure_allow_anonymous_virtual_cluster_auth = true
@@ -86,7 +91,7 @@ resource "konnect_event_gateway_virtual_cluster" "sim_1999_ny" {
   dns_label = "sim-1999-ny"
 
   namespace = {
-    prefix = "sko.WORLD_NY_1999."
+    prefix = "WORLD_NY_1999."
     mode   = "hide_prefix"
     additional = {
       consumer_groups = [{}]
@@ -95,10 +100,16 @@ resource "konnect_event_gateway_virtual_cluster" "sim_1999_ny" {
             exact_list = [
               {
                 backend = "weather_pattern_emulation"
-              }
+              },
             ]
           }
-        }]
+        },
+        {
+          glob = {
+            glob =  "system_*"
+          }
+        }
+      ]
     }
   }
 
@@ -130,7 +141,7 @@ resource "konnect_event_gateway_virtual_cluster" "sim_2026_la" {
   dns_label = "sim-2024-la"
 
   namespace = {
-    prefix = "sko.WORLD_LA_2024."
+    prefix = "WORLD_LA_2024."
     mode   = "hide_prefix"
     additional = {
       consumer_groups = [{}]
@@ -196,14 +207,14 @@ resource "konnect_event_gateway_virtual_cluster" "machine_city_core" {
     
   }}]
 
-  namespace = {
-    prefix = "sko."
-    mode   = "hide_prefix"
-    additional = {
-      consumer_groups = [{}]
-      topics          = []
-    }
-  }
+  # namespace = {
+  #   prefix = "sko."
+  #   mode   = "hide_prefix"
+  #   additional = {
+  #     consumer_groups = [{}]
+  #     topics          = []
+  #   }
+  # }
 
   depends_on = [konnect_event_gateway.event_gateway_terraform, konnect_event_gateway_backend_cluster.backend_cluster]
 }
@@ -337,6 +348,19 @@ resource "konnect_event_gateway_cluster_policy_acls" "acl_sim_1999_ny" {
         resource_type = "topic"
         resource_names = [{
           match = "system_*"
+        }]
+      },
+      {
+        action = "allow"
+        operations = [
+          { name = "describe" },
+          { name = "read" },
+          { name = "write" },
+          { name = "create" }
+        ]
+        resource_type = "group"
+        resource_names = [{
+          match = "*"
         }]
       }
     ]
