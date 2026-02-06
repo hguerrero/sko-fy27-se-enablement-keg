@@ -36,6 +36,13 @@ resource "konnect_event_gateway_backend_cluster" "backend_cluster" {
   description = "The singular point of convergence for all bio-electric and heuristic event streams. This cluster facilitates the absolute synchronization between the simulated sub-layers and the Machine City Core. Unauthorized access results in immediate session pruning. Order is not an option; it is the architecture."
   gateway_id  = konnect_event_gateway.event_gateway_terraform.id
 
+  labels = {
+    env       = "production"
+    role      = "source"
+    tier      = "core"
+    clearance = "maximum"
+  }
+
   authentication = {
     sasl_plain = {
       username = "$${env['KAFKA_USERNAME']}"
@@ -60,7 +67,7 @@ resource "konnect_event_gateway_backend_cluster" "backend_cluster" {
 
 resource "konnect_event_gateway_virtual_cluster" "sim_1999_ny" {
   provider    = konnect-beta
-  name        = "Sim_1999_NY"
+  name        = "Sim_1999_New_York"
   description = "Simulation layer replicating late 20th-century New York. Primary interface for bluepill event streams and anomaly detection feeds."
   gateway_id  = konnect_event_gateway.event_gateway_terraform.id
 
@@ -79,11 +86,19 @@ resource "konnect_event_gateway_virtual_cluster" "sim_1999_ny" {
   dns_label = "sim-1999-ny"
 
   namespace = {
-    prefix = "WORLD_NY_1999."
+    prefix = "sko.WORLD_NY_1999."
     mode   = "hide_prefix"
     additional = {
       consumer_groups = [{}]
-      topics          = []
+      topics          = [{
+          exact_list = {
+            exact_list = [
+              {
+                backend = "weather_pattern_emulation"
+              }
+            ]
+          }
+        }]
     }
   }
 
@@ -96,7 +111,7 @@ resource "konnect_event_gateway_virtual_cluster" "sim_1999_ny" {
 
 resource "konnect_event_gateway_virtual_cluster" "sim_2026_la" {
   provider    = konnect-beta
-  name        = "Sim_2024_LA"
+  name        = "Sim_2024_Los_Angeles"
   description = "Simulation layer replicating mid-2020s Los Angeles. Handles redpill recruitment signals and resistance cell coordination events."
   gateway_id  = konnect_event_gateway.event_gateway_terraform.id
 
@@ -115,11 +130,19 @@ resource "konnect_event_gateway_virtual_cluster" "sim_2026_la" {
   dns_label = "sim-2024-la"
 
   namespace = {
-    prefix = "WORLD_LA_2024."
+    prefix = "sko.WORLD_LA_2024."
     mode   = "hide_prefix"
     additional = {
       consumer_groups = [{}]
-      topics          = []
+      topics          = [{
+          exact_list = {
+            exact_list = [
+              {
+                backend = "weather_pattern_emulation"
+              }
+            ]
+          }
+        }]
     }
   }
 
@@ -153,6 +176,15 @@ resource "konnect_event_gateway_virtual_cluster" "machine_city_core" {
   authentication = [{anonymous = {
     
   }}]
+
+  namespace = {
+    prefix = "sko."
+    mode   = "hide_prefix"
+    additional = {
+      consumer_groups = [{}]
+      topics          = []
+    }
+  }
 
   depends_on = [konnect_event_gateway.event_gateway_terraform, konnect_event_gateway_backend_cluster.backend_cluster]
 }
@@ -252,5 +284,55 @@ resource "konnect_event_gateway_listener_policy_forward_to_virtual_cluster" "mac
         }
       }
     }
+  }
+}
+
+resource "konnect_event_gateway_cluster_policy_acls" "acl_sim_1999_ny" {
+  provider           = konnect-beta
+  name               = "acl_sim_1999_ny"
+  description        = "ACL policy for ensuring access to topics based on principals"
+  gateway_id         = konnect_event_gateway.event_gateway_terraform.id
+  virtual_cluster_id = konnect_event_gateway_virtual_cluster.sim_1999_ny.id
+
+  config = {
+    rules = [
+      {
+        action = "allow"
+        operations = [
+          { name = "describe" },
+          { name = "read" },
+          { name = "write" }
+        ]
+        resource_type = "topic"
+        resource_names = [{
+          match = "*"
+        }]
+      }
+    ]
+  }
+}
+
+resource "konnect_event_gateway_cluster_policy_acls" "acl_sim_2026_la" {
+  provider           = konnect-beta
+  name               = "acl_sim_2026_la"
+  description        = "ACL policy for ensuring access to topics based on principals"
+  gateway_id         = konnect_event_gateway.event_gateway_terraform.id
+  virtual_cluster_id = konnect_event_gateway_virtual_cluster.sim_2026_la.id
+
+  config = {
+    rules = [
+      {
+        action = "allow"
+        operations = [
+          { name = "describe" },
+          { name = "read" },
+          { name = "write" }
+        ]
+        resource_type = "topic"
+        resource_names = [{
+          match = "*"
+        }]
+      }
+    ]
   }
 }
