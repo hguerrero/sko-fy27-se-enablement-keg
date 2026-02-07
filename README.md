@@ -40,8 +40,25 @@ A Matrix-themed demonstration of [Kong Event Gateway (KEG)](https://docs.konghq.
 | [`event-gateway/`](event-gateway/) | Terraform IaC — KEG control plane, virtual clusters, ACLs, Docker containers |
 | [`anomaly-detector-agent/`](anomaly-detector-agent/) | TypeScript agent — consumes Kafka events, enriches with LLM, produces to two topics |
 | [`sentinel-agent/`](sentinel-agent/) | TypeScript agent — single-prompt LLM reasoning via Volcano SDK |
-| `schema.json` | JSON Schema for `machine_status` events (`protocol_id`, `machine_id`, `status`) |
-| `topics` | Topic name list for the Kafka cluster |
+| [`config/`](config/) | Shared configuration assets |
+| [`config/schema.json`](config/schema.json) | JSON Schema for `machine_status` events (`protocol_id`, `machine_id`, `status`) |
+| [`config/topics.txt`](config/topics.txt) | Topic name list for the Kafka cluster |
+
+### Terraform Files
+
+| File | Description |
+|---|---|
+| `event-gateway/main.tf` | Terraform block and required providers |
+| `event-gateway/keg_gateway.tf` | Event Gateway and Backend Cluster resources |
+| `event-gateway/keg_virtual_clusters.tf` | Virtual cluster definitions (3 VCs) |
+| `event-gateway/keg_listeners.tf` | Listeners and forwarding policies |
+| `event-gateway/keg_acl_policies.tf` | ACL policies for access control |
+| `event-gateway/keg_schema_registry.tf` | Schema registry and validation policy |
+| `event-gateway/keg_docker.tf` | Docker containers (KEG data plane, Apicurio) |
+| `event-gateway/keg_data_plane.tf` | TLS certificates for data plane |
+| `event-gateway/variables.tf` | Input variable definitions |
+| `event-gateway/outputs.tf` | Output values |
+| `event-gateway/providers.tf` | Provider configuration |
 
 ## Virtual Clusters
 

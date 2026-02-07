@@ -116,7 +116,7 @@ resource "docker_container" "apicurio_registry_ui" {
 
 resource "terraform_data" "register_schema" {
   # Re-register if the schema file changes
-  input = filesha256("${path.module}/../schema.json")
+  input = filesha256("${path.module}/../config/schema.json")
 
   provisioner "local-exec" {
     command = <<-EOT
@@ -133,7 +133,7 @@ resource "terraform_data" "register_schema" {
       echo "Registering JSON schema via Confluent-compatible API..."
       curl -X POST \
         -H "Content-Type: application/vnd.schemaregistry.v1+json" \
-        --data '{"schema": ${jsonencode(file("${path.module}/../schema.json"))}, "schemaType": "JSON"}' \
+        --data '{"schema": ${jsonencode(file("${path.module}/../config/schema.json"))}, "schemaType": "JSON"}' \
         http://localhost:8080/apis/ccompat/v7/subjects/machine-status-value/versions
 
       echo ""
