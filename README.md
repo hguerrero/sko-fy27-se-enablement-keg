@@ -120,6 +120,7 @@ OPENAI_API_KEY=sk-... npm start "Describe the anomaly in sector 7"
 | `TF_VAR_konnect_token` | Terraform | Kong Konnect Personal Access Token |
 | `TF_VAR_kafka_username` | Terraform | Kafka backend SASL username |
 | `TF_VAR_kafka_password` | Terraform | Kafka backend SASL password |
+| `TF_VAR_snentinal_encryption_key` | Terraform | Encryption key for data |
 | `OPENAI_API_KEY` | Agents | OpenAI API key for LLM reasoning |
 | `OPENAI_MODEL` | Agents | Model override (default: `gpt-4o-mini`) |
 | `KAFKA_BROKER` | Anomaly Detector | KEG bootstrap address (default: `localhost:19092`) |

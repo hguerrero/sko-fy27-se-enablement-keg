@@ -62,6 +62,12 @@ variable "kafka_password" {
   sensitive   = true
 }
 
+variable "sentinal_encryption_key" {
+  type        = string
+  description = "Encryption key for record encryption"
+  sensitive   = true
+}
+
 # ============================================================================
 # Authentication Configuration
 # ============================================================================
