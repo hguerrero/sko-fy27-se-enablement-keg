@@ -115,8 +115,8 @@ resource "docker_container" "apicurio_registry_ui" {
 # ============================================================================
 
 resource "terraform_data" "register_schema" {
-  # Re-register if the schema file changes
-  input = filesha256("${path.module}/../config/schema.json")
+  # Force re-run on every apply to ensure schema exists (no persistence in Apicurio)
+  triggers_replace = timestamp()
 
   provisioner "local-exec" {
     command = <<-EOT
