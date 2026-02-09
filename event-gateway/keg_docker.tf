@@ -1,8 +1,8 @@
 # KEG Data Plane Docker Container
 # Runs the Kong Event Gateway data plane container using the generated certificates
 
-# Shared Docker network for all containers
-resource "docker_network" "keg_network" {
+# Reference the existing Docker network created by docker-compose
+data "docker_network" "keg_network" {
   name = "keg-network"
 }
 
@@ -38,7 +38,7 @@ resource "docker_container" "keg_data_plane" {
   }
 
   networks_advanced {
-    name = docker_network.keg_network.id
+    name = data.docker_network.keg_network.id
   }
 
   restart = "unless-stopped"
@@ -69,7 +69,7 @@ resource "docker_container" "apicurio_registry" {
   }
 
   networks_advanced {
-    name = docker_network.keg_network.id
+    name = data.docker_network.keg_network.id
   }
 
   restart = "unless-stopped"
@@ -100,7 +100,7 @@ resource "docker_container" "apicurio_registry_ui" {
   }
 
   networks_advanced {
-    name = docker_network.keg_network.id
+    name = data.docker_network.keg_network.id
   }
 
   restart = "unless-stopped"

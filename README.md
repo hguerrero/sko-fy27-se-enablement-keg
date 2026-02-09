@@ -43,6 +43,7 @@ A Matrix-themed demonstration of [Kong Event Gateway (KEG)](https://docs.konghq.
 | [`config/`](config/) | Shared configuration assets |
 | [`config/schema.json`](config/schema.json) | JSON Schema for `machine_status` events (`protocol_id`, `machine_id`, `status`) |
 | [`config/topics.txt`](config/topics.txt) | Topic name list for the Kafka cluster |
+| [`docker-compose.yaml`](docker-compose.yaml) | 3-node KRaft Kafka cluster (backend for KEG) |
 
 ### Terraform Files
 
@@ -78,7 +79,15 @@ A Matrix-themed demonstration of [Kong Event Gateway (KEG)](https://docs.konghq.
 
 ## Quick Start
 
-### 1. Deploy the Event Gateway
+### 1. Start the Backend Kafka Cluster
+
+```bash
+docker compose up -d
+```
+
+This starts a 3-node KRaft Kafka cluster on the `keg-network` Docker network (brokers on ports 9092–9094).
+
+### 2. Deploy the Event Gateway
 
 ```bash
 cd event-gateway
@@ -97,7 +106,7 @@ This provisions:
 - JSON schema registration via Confluent-compatible API
 - Schema validation policy on produce requests
 
-### 2. Run the Anomaly Detector Agent
+### 3. Run the Anomaly Detector Agent
 
 ```bash
 cd anomaly-detector-agent
@@ -105,7 +114,7 @@ npm install
 OPENAI_API_KEY=sk-... npm start
 ```
 
-### 3. Run the Sentinel Agent
+### 4. Run the Sentinel Agent
 
 ```bash
 cd sentinel-agent
