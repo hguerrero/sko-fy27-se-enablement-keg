@@ -125,7 +125,7 @@ const AnomalyDetector: React.FC = () => {
     Math.round(anomalies.reduce((sum, a) => sum + a.confidence, 0) / anomalies.length * 100) : 0;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 pb-12 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3">

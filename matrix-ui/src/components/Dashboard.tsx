@@ -54,7 +54,7 @@ const Dashboard: React.FC = () => {
   ];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 pb-12 space-y-6">
       {/* Header */}
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold mb-2 animate-glow">THE MATRIX</h1>

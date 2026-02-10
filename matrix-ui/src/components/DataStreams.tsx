@@ -127,7 +127,7 @@ const DataStreams: React.FC = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 pb-12 space-y-6">
       {/* Header Controls */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-matrix-green">DATA STREAMS</h1>

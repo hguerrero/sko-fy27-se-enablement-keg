@@ -128,7 +128,9 @@ function App() {
 
         {/* Main Content */}
         <main className="flex-1 overflow-auto relative z-10">
-          {renderView()}
+          <div className="pb-8">
+            {renderView()}
+          </div>
         </main>
       </div>
     </div>
