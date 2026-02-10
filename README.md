@@ -40,6 +40,7 @@ A Matrix-themed demonstration of [Kong Event Gateway (KEG)](https://docs.konghq.
 | [`event-gateway/`](event-gateway/) | Terraform IaC — KEG control plane, virtual clusters, ACLs, Docker containers |
 | [`anomaly-detector-agent/`](anomaly-detector-agent/) | TypeScript agent — consumes Kafka events, enriches with LLM, produces to two topics |
 | [`sentinel-agent/`](sentinel-agent/) | TypeScript agent — single-prompt LLM reasoning via Volcano SDK |
+| [`matrix-ui/`](matrix-ui/) | **🟢 React web interface** — Matrix-themed UI to visualize all capabilities without terminal access |
 | [`config/`](config/) | Shared configuration assets |
 | [`config/schemas/`](config/schemas/) | JSON Schemas for all event types (with examples) |
 | [`config/topics.txt`](config/topics.txt) | Topic name list for the Kafka cluster |
@@ -121,6 +122,26 @@ cd sentinel-agent
 npm install
 OPENAI_API_KEY=sk-... npm start "Describe the anomaly in sector 7"
 ```
+
+### 5. 🟢 Launch the Matrix UI (Optional but Recommended!)
+
+**No more terminal required!** Experience the full demo through a beautiful Matrix-themed web interface:
+
+```bash
+cd matrix-ui
+npm install
+npm start
+```
+
+Then open `http://localhost:3000` in your browser to access:
+
+- **📊 Real-time Dashboard** - Live system overview and metrics
+- **🌊 Data Stream Visualization** - Interactive charts of taxi, EV, and subway data
+- **🛡️ AI Anomaly Detection** - Visual interface for LLM-powered anomaly analysis
+- **👁️ Sentinel Agent Control** - Start/stop and configure the AI monitoring agent
+- **🌐 Virtual Cluster Management** - Explore KEG multi-tenant architecture
+
+The UI provides full control and visualization without needing multiple terminal windows!
 
 ## Environment Variables
 
