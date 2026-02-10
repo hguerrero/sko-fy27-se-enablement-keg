@@ -25,7 +25,8 @@ resource "docker_container" "keg_data_plane" {
     "KONNECT_CLIENT_KEY=${tls_private_key.keg_data_plane.private_key_pem}",
     "KAFKA_USERNAME=${var.kafka_username}",
     "KAFKA_PASSWORD=${var.kafka_password}",
-    "KEG__OBSERVABILITY__LOG_FLAGS=info,keg=debug"
+    "KEG__OBSERVABILITY__LOG_FLAGS=info,keg=debug",
+    "SENTINAL_ENCRYPTION_KEY=${var.sentinal_encryption_key}"
   ]
 
   # Port range 19092-19390 mapped 1:1
