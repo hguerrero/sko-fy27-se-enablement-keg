@@ -41,7 +41,7 @@ A Matrix-themed demonstration of [Kong Event Gateway (KEG)](https://docs.konghq.
 | [`anomaly-detector-agent/`](anomaly-detector-agent/) | TypeScript agent — consumes Kafka events, enriches with LLM, produces to two topics |
 | [`sentinel-agent/`](sentinel-agent/) | TypeScript agent — single-prompt LLM reasoning via Volcano SDK |
 | [`config/`](config/) | Shared configuration assets |
-| [`config/schema.json`](config/schema.json) | JSON Schema for `machine_status` events (`protocol_id`, `machine_id`, `status`) |
+| [`config/schemas/`](config/schemas/) | JSON Schemas for all event types (with examples) |
 | [`config/topics.txt`](config/topics.txt) | Topic name list for the Kafka cluster |
 | [`docker-compose.yaml`](docker-compose.yaml) | 3-node KRaft Kafka cluster (backend for KEG) |
 

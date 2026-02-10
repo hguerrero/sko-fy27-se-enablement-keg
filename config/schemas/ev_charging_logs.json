@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EV Charging Log Event",
+  "description": "Electric vehicle charging session event from the 2024 Los Angeles simulation layer",
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "Unique charging session identifier",
+      "pattern": "^LA-[0-9]+-[0-9]+$"
+    },
+    "station": {
+      "type": "string",
+      "description": "Charging station name",
+      "enum": [
+        "Venice-Beach-Supercharger", "Santa-Monica-Pier", "Hollywood-Blvd",
+        "Downtown-LA-Hub", "Pasadena-Central", "Long-Beach-Marina",
+        "LAX-Terminal-3", "Griffith-Observatory", "Silver-Lake-Station"
+      ]
+    },
+    "connector_type": {
+      "type": "string",
+      "description": "Charging connector standard",
+      "enum": ["CCS", "CHAdeMO", "Tesla-NACS", "J1772"]
+    },
+    "status": {
+      "type": "string",
+      "description": "Current session status",
+      "enum": ["charging", "completed", "waiting", "error", "disconnected"]
+    },
+    "vehicle_make": {
+      "type": "string",
+      "description": "Vehicle manufacturer",
+      "enum": ["Tesla", "Rivian", "Lucid", "BMW", "Ford", "Hyundai"]
+    },
+    "kwh_delivered": {
+      "type": "number",
+      "description": "Energy delivered in kilowatt-hours",
+      "minimum": 0
+    },
+    "cost_usd": {
+      "type": "number",
+      "description": "Session cost in USD",
+      "minimum": 2
+    },
+    "battery_pct": {
+      "type": "integer",
+      "description": "Battery percentage at time of event",
+      "minimum": 10,
+      "maximum": 99
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "ISO 8601 event timestamp",
+      "format": "date-time"
+    }
+  },
+  "required": ["session_id", "station", "connector_type", "status", "vehicle_make", "kwh_delivered", "cost_usd", "battery_pct", "timestamp"],
+  "additionalProperties": false,
+  "examples": [
+    {
+      "session_id": "LA-1707580981000-42",
+      "station": "Hollywood-Blvd",
+      "connector_type": "Tesla-NACS",
+      "status": "charging",
+      "vehicle_make": "Tesla",
+      "kwh_delivered": 45.23,
+      "cost_usd": 14.80,
+      "battery_pct": 72,
+      "timestamp": "2026-02-10T14:23:01.000Z"
+    },
+    {
+      "session_id": "LA-1707580995000-187",
+      "station": "Venice-Beach-Supercharger",
+      "connector_type": "CCS",
+      "status": "completed",
+      "vehicle_make": "Rivian",
+      "kwh_delivered": 62.10,
+      "cost_usd": 22.35,
+      "battery_pct": 95,
+      "timestamp": "2026-02-10T14:25:30.000Z"
+    },
+    {
+      "session_id": "LA-1707581010000-503",
+      "station": "LAX-Terminal-3",
+      "connector_type": "CHAdeMO",
+      "status": "error",
+      "vehicle_make": "BMW",
+      "kwh_delivered": 3.50,
+      "cost_usd": 2.10,
+      "battery_pct": 15,
+      "timestamp": "2026-02-10T14:28:45.000Z"
+    }
+  ]
+}
+

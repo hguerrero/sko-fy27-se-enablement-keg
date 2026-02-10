@@ -5,7 +5,7 @@ biomass_efficiency_logs
 dock_sector_patrol_logs
 subroutine_synchronization
 system_update_protocol
-Tactical_Strike_Command
+tactical_strike_command
 weather_pattern_emulation
 white_rabbit_location
 knowledge_ingestion

@@ -133,7 +133,7 @@ resource "terraform_data" "register_schema" {
       echo "Registering JSON schema via Confluent-compatible API..."
       curl -X POST \
         -H "Content-Type: application/vnd.schemaregistry.v1+json" \
-        --data '{"schema": ${jsonencode(file("${path.module}/../config/schema.json"))}, "schemaType": "JSON"}' \
+        --data '{"schema": ${jsonencode(file("${path.module}/../config/schemas/machine_status.json"))}, "schemaType": "JSON"}' \
         http://localhost:8080/apis/ccompat/v7/subjects/machine-status-value/versions
 
       echo ""
