@@ -13,6 +13,12 @@ const TRIGGER_TOPIC = "anomaly_detection_pings";
 const ENRICHED_TOPIC = "knowledge_ingestion";
 
 // ---------------------------------------------------------------------------
+// AI Gateway RAG Injector – ingest enriched data into vector store
+// ---------------------------------------------------------------------------
+const KONG_ADMIN_URL = process.env.KONG_ADMIN_URL ?? "http://localhost:8001";
+const RAG_COLLECTION = process.env.RAG_COLLECTION ?? "anomaly-reports";
+
+// ---------------------------------------------------------------------------
 // LLM – uses OpenAI via Volcano SDK (set OPENAI_API_KEY env var)
 // ---------------------------------------------------------------------------
 const llm = llmOpenAI({
@@ -34,11 +40,73 @@ const consumer = kafka.consumer({ groupId: "sko-anomaly-detector-agent" });
 const producer = kafka.producer();
 
 // ---------------------------------------------------------------------------
+// RAG Injector – discover plugin ID and ingest enriched data
+// ---------------------------------------------------------------------------
+let ragIngestUrl: string | null = null;
+
+async function discoverRagPluginId(): Promise<string | null> {
+  try {
+    const res = await fetch(`${KONG_ADMIN_URL}/plugins`);
+    if (!res.ok) {
+      console.warn(`⚠️  Could not reach Kong Admin API (${res.status}). RAG ingestion disabled.`);
+      return null;
+    }
+    const body = await res.json() as { data: Array<{ id: string; name: string }> };
+    const plugin = body.data.find((p) => p.name === "ai-rag-injector");
+    if (!plugin) {
+      console.warn("⚠️  ai-rag-injector plugin not found. RAG ingestion disabled.");
+      return null;
+    }
+    return plugin.id;
+  } catch (err) {
+    console.warn("⚠️  Kong Admin API unreachable. RAG ingestion disabled.", err);
+    return null;
+  }
+}
+
+async function ingestToRag(enrichedPayload: string, ragSnippet: string): Promise<void> {
+  if (!ragIngestUrl) return;
+
+  const enriched = JSON.parse(enrichedPayload);
+
+  const chunk = {
+    content: ragSnippet,
+    metadata: {
+      collection: RAG_COLLECTION,
+      source: "anomaly-detector-agent",
+      date: enriched._analyzed_at,
+      severity: enriched._severity,
+      is_anomaly: String(enriched._is_anomaly),
+      tags: ["machine-status", "subway", "ny-1999", "anomaly-detection"],
+    },
+  };
+
+  try {
+    const res = await fetch(ragIngestUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(chunk),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error(`❌ RAG ingest failed (${res.status}): ${text}`);
+      return;
+    }
+
+    console.log(`📦 RAG ingest OK → vector store updated`);
+  } catch (err) {
+    console.error("❌ RAG ingest request failed:", err);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Anomaly analysis agent – single LLM step powered by Volcano SDK
 // ---------------------------------------------------------------------------
 async function analyzeMessage(raw: string): Promise<{
   triggerPayload: string;
   enrichedPayload: string;
+  ragSnippet: string;
 }> {
   const results = await agent({ llm, hideProgress: true })
     .then({
@@ -54,7 +122,8 @@ Respond STRICTLY as JSON with these fields:
   "severity": "low" | "medium" | "high" | "critical",
   "analysis": "<one-sentence explanation>",
   "recommended_action": "<what other agents should do>",
-  "enriched_event": { <original fields plus your added context fields> }
+  "enriched_event": { <original fields plus your added context fields> },
+  "rag_snippet": "<a concise human-readable text paragraph summarizing this event for a knowledge base. Include: what the target system or entity is, its last known location or zone, the anomaly status and severity, and the key observations. Write it as a self-contained intelligence briefing that can be retrieved later by a RAG system.>"
 }`,
     })
     .run();
@@ -81,13 +150,14 @@ Respond STRICTLY as JSON with these fields:
     _analysis: parsed.analysis,
     _severity: parsed.severity,
     _is_anomaly: parsed.is_anomaly,
-    _analyzed_at: new Date().toISOString(),
+    _analyzed_at: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
     _agent: "anomaly-detector-agent",
   };
 
   return {
     triggerPayload: JSON.stringify(trigger),
     enrichedPayload: JSON.stringify(enriched),
+    ragSnippet: parsed.rag_snippet ?? `Anomaly report: ${parsed.analysis}`,
   };
 }
 
@@ -99,6 +169,13 @@ async function main() {
   console.log(`   Broker : ${BROKER}`);
   console.log(`   Input  : ${INPUT_TOPIC}`);
   console.log(`   Outputs: ${TRIGGER_TOPIC}, ${ENRICHED_TOPIC}`);
+
+  // Discover RAG Injector plugin for vector store ingestion
+  const pluginId = await discoverRagPluginId();
+  if (pluginId) {
+    ragIngestUrl = `${KONG_ADMIN_URL}/ai-rag-injector/${pluginId}/ingest_chunk`;
+    console.log(`   RAG    : ${ragIngestUrl}`);
+  }
 
   await consumer.connect();
   await producer.connect();
@@ -114,7 +191,7 @@ async function main() {
       console.log(`⚡ Received event: ${raw}`);
 
       try {
-        const { triggerPayload, enrichedPayload } = await analyzeMessage(raw);
+        const { triggerPayload, enrichedPayload, ragSnippet } = await analyzeMessage(raw);
 
         await producer.send({
           topic: TRIGGER_TOPIC,
@@ -126,7 +203,10 @@ async function main() {
           messages: [{ key: message.key, value: enrichedPayload }],
         });
 
-        console.log(`✅ Processed → trigger + enriched messages produced\n`);
+        // Ingest enriched data into AI Gateway vector store (RAG)
+        await ingestToRag(enrichedPayload, ragSnippet);
+
+        console.log(`✅ Processed → trigger + enriched + RAG ingested\n`);
       } catch (err) {
         console.error("❌ Failed to process event:", err);
       }
