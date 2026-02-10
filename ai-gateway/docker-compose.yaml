@@ -41,11 +41,12 @@ services:
     restart: unless-stopped
     # Health check to ensure Ollama is responding
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      # Use "ollama list" to verify the server is running
+      test: ["CMD", "ollama", "list"] 
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 40s # Gives time for Ollama to initialize
 
   # Sidecar container to pull models after Ollama starts
   model-loader:
