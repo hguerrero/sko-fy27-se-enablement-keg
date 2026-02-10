@@ -1,0 +1,67 @@
+services:
+  kong:
+    image: kong/kong-gateway:3.13
+    container_name: kong
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+      - "8002:8002"
+    volumes:
+        - ./kong-config/:/kong/declarative/
+    environment:
+        - KONG_DATABASE=off
+        - KONG_DECLARATIVE_CONFIG=/kong/declarative/kong.yaml
+        - KONG_PROXY_ACCESS_LOG=/dev/stdout
+        - KONG_ADMIN_ACCESS_LOG=/dev/stdout
+        - KONG_PROXY_ERROR_LOG=/dev/stderr
+        - KONG_ADMIN_ERROR_LOG=/dev/stderr
+        - KONG_ADMIN_LISTEN=0.0.0.0:8001
+        - KONG_ADMIN_GUI_URL=http://localhost:8002
+        - KONG_LICENSE_DATA
+        # - KONG_LOG_LEVEL=debug
+    depends_on:
+      - redis
+
+  redis:
+    image: redis/redis-stack:7.4.0-v0
+    container_name: redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      # Expose Ollama API on host port 11434
+      - "11434:11434"
+    volumes:
+      # Persist models between container restarts
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    # Health check to ensure Ollama is responding
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Sidecar container to pull models after Ollama starts
+  model-loader:
+    image: curlimages/curl:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    # Pull required models
+    entrypoint: >
+      sh -c "
+        curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"qwen2.5:0.5b-instruct\"}' &&
+        curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"nomic-embed-text\"}'
+      "
+    restart: "no"
+
+volumes:
+  # Named volume for model persistence
+  ollama_data:
+    driver: local

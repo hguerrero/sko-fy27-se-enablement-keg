@@ -10,18 +10,18 @@ A Matrix-themed demonstration of [Kong Event Gateway (KEG)](https://docs.konghq.
 ┌─────────────────────────────────────────────────────────────────────┐
 │                     Kong Event Gateway (KEG)                        │
 │                                                                     │
-│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────────┐    │
-│  │ Sim_1999_NY  │  │ Sim_2024_LA  │  │  Machine_City_Core     │    │
-│  │ :19192-19290 │  │ :19292-19390 │  │  :19092-19190          │    │
-│  │ anonymous    │  │ SASL/PLAIN   │  │  anonymous (passthru)  │    │
-│  │ prefix:      │  │ prefix:      │  │                        │    │
-│  │ WORLD_NY_1999│  │ WORLD_LA_2024│  │                        │    │
-│  └──────┬───────┘  └──────┬───────┘  └───────────┬────────────┘    │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────────┐     │
+│  │ Sim_1999_NY  │  │ Sim_2024_LA  │  │  Machine_City_Core     │     │
+│  │ :19192-19290 │  │ :19292-19390 │  │  :19092-19190          │     │
+│  │ anonymous    │  │ SASL/PLAIN   │  │  anonymous (passthru)  │     │
+│  │ prefix:      │  │ prefix:      │  │                        │     │
+│  │ WORLD_NY_1999│  │ WORLD_LA_2024│  │                        │     │
+│  └──────┬───────┘  └──────┬───────┘  └───────────┬────────────┘     │
 │         └─────────────────┴──────────────────────┘                  │
 │                            │                                        │
 │              ┌─────────────┴─────────────┐                          │
-│              │  Source-Zero-Mainframe     │                          │
-│              │  (Backend Kafka Cluster)   │                          │
+│              │  Source-Zero-Mainframe    │                          │
+│              │  (Backend Kafka Cluster)  │                          │
 │              └───────────────────────────┘                          │
 └─────────────────────────────────────────────────────────────────────┘
          │                                          │
@@ -29,7 +29,7 @@ A Matrix-themed demonstration of [Kong Event Gateway (KEG)](https://docs.konghq.
     │ Anomaly Detector │                 │  Sentinel Agent     │
     │ Agent            │                 │  (LLM Reasoning)    │
     │ Kafka → LLM →    │                 └─────────────────────┘
-    │ Kafka             │
+    │ Kafka            │
     └──────────────────┘
 ```
 

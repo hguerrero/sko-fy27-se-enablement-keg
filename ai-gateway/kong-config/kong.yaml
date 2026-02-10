@@ -1,0 +1,58 @@
+_format_version: "3.0"
+
+services:
+- name: ai-gw
+  url: http://host.docker.internal:8086
+  routes:
+  - name: chat
+    paths:
+    - /chat
+    plugins:
+    - name: ai-proxy
+      config:
+        route_type: "llm/v1/chat"
+        auth:
+          header_name: "testing"
+          header_value: "true"
+        model:
+          provider: "openai"
+          name: "qwen2.5:0.5b-instruct"
+          options:
+            max_tokens: 1024
+            temperature: 0.5
+            upstream_url: http://host.docker.internal:11434/v1/chat/completions
+
+    - name: ai-rag-injector
+      config:
+        inject_template: |
+          Only use the following information surrounded by <CONTEXT></CONTEXT> and your existing knowledge to provide the best possible answer to the user.
+          <CONTEXT><RAG RESPONSE></CONTEXT>
+          User's question: <PROMPT>
+        embeddings:
+          model:
+            provider: openai
+            name: nomic-embed-text
+            options:
+              upstream_url: http://host.docker.internal:11434/v1/embeddings
+        vectordb:
+          strategy: redis
+          redis:
+            host: redis
+            port: 6379
+          distance_metric: cosine
+          dimensions: 768
+
+    - name: cors
+      config:
+        methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+        - HEAD
+        - PATCH
+        - TRACE
+        - CONNECT
+        origins:
+        - '*'
