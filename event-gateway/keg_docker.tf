@@ -145,3 +145,30 @@ resource "terraform_data" "register_schema" {
     docker_container.apicurio_registry
   ]
 }
+
+# ============================================================================
+# Create Kafka Topics from config/topics.txt
+# ============================================================================
+
+resource "terraform_data" "create_topics" {
+  # Force re-run on every apply to ensure topics exist (idempotent with --if-not-exists)
+  triggers_replace = timestamp()
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo "Creating Kafka topics from config/topics.txt..."
+      while IFS= read -r topic || [ -n "$topic" ]; do
+        [ -z "$topic" ] && continue
+        echo "  → Creating topic: $topic"
+        docker exec kafka1 /opt/kafka/bin/kafka-topics.sh \
+          --bootstrap-server kafka1:9092 \
+          --create \
+          --if-not-exists \
+          --topic "$topic" \
+          --partitions 3 \
+          --replication-factor 3
+      done < "${path.module}/../config/topics.txt"
+      echo "Topic creation complete."
+    EOT
+  }
+}
