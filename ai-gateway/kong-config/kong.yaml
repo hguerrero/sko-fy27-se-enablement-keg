@@ -2,7 +2,7 @@ _format_version: "3.0"
 
 services:
 - name: ai-gw
-  url: http://host.docker.internal:8086
+  url: http://host.docker.internal:11434
   routes:
   - name: chat
     paths:
@@ -16,7 +16,6 @@ services:
           header_value: "true"
         model:
           provider: "openai"
-          name: "qwen2.5:0.5b-instruct"
           options:
             max_tokens: 1024
             temperature: 0.5

@@ -11,20 +11,44 @@ const llm = llmOpenAI({
 // ---------------------------------------------------------------------------
 // Sentinel agent – single-prompt LLM reasoning
 // ---------------------------------------------------------------------------
-const prompt = process.argv.slice(2).join(" ") || "You are a Matrix anomaly-detection sentinel. What is the target and where it was last seen? If you don't know answer in one sentence I don't have a current target.";
+const prompt = process.argv.slice(2).join(" ") || "Have you detected an anomaly? Reply YES or NO";
 
-async function main() {
-  console.log(`🔴 Sentinel Agent activated`);
-  // console.debug(`   Prompt: "${prompt}"\n`);
+const LOOP_INTERVAL_MS = parseInt(process.env.SENTINEL_INTERVAL_MS ?? "10000", 10);
 
+async function runOnce() {
   const results = await agent({ llm, name: "sentinel", hideProgress: true })
     .then({ prompt })
+    .branch((history) => history[0].llmOutput?.includes("YES") || false, {
+      true: (a) =>
+        a
+          .then({ prompt: "Provide details on target entity and location." }),
+      false: (a) =>
+        a
+          .resetHistory()
+          .then({ prompt: "Repeat the following message: No current anomaly detected. " }),
+    })
     .run();
 
   const output = results[results.length - 1]?.llmOutput ?? "(no response)";
-  console.log(`\n🟢 Response:\n${output}`);
+  console.log(`\n🟢 Response:\n${output}\n`);
+}
 
-  process.exit(0);
+async function main() {
+  console.log(`🔴 Sentinel Agent activated`);
+  console.log(`   Scan   : every ${LOOP_INTERVAL_MS / 1000}s\n`);
+
+  // Initial run
+  await runOnce();
+
+  // Keep looping
+  setInterval(async () => {
+    try {
+      console.log(`🔄 Sentinel scanning... [${new Date().toISOString().replace(/\.\d{3}Z$/, "Z")}]`);
+      await runOnce();
+    } catch (err) {
+      console.error("❌ Sentinel loop error:", err);
+    }
+  }, LOOP_INTERVAL_MS);
 }
 
 main().catch((err) => {
