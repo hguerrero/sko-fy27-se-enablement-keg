@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Activity, Database, Shield, Zap, Network, Eye } from 'lucide-react';
+import { Activity, Database, Eye, Network, Shield, Zap } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import AnomalyDetector from './components/AnomalyDetector';
 import Dashboard from './components/Dashboard';
 import DataStreams from './components/DataStreams';
-import AnomalyDetector from './components/AnomalyDetector';
 import SentinelAgent from './components/SentinelAgent';
 import VirtualClusters from './components/VirtualClusters';
-import MatrixBackground from './components/MatrixBackground';
 
 type ViewType = 'dashboard' | 'streams' | 'anomaly' | 'sentinel' | 'clusters';
 
@@ -46,7 +45,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-matrix-black text-matrix-green">
-      <MatrixBackground />
+      {/* <MatrixBackground /> */}
       
       {/* Header */}
       <header className="relative z-10 border-b border-matrix-darkgreen bg-matrix-black/80 backdrop-blur">
