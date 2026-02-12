@@ -44,13 +44,14 @@ const MatrixBackground: React.FC = () => {
   }, []);
 
   return (
-    <div className="matrix-bg">
+    <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-[-10] bg-gradient-to-b from-transparent to-green-500/10">
       {chars.map(char => (
         <div
           key={char.id}
-          className="matrix-rain absolute text-xs select-none pointer-events-none"
+          className="absolute text-xs select-none pointer-events-none text-green-500/50 animate-matrix-rain"
           style={{
             left: char.x,
+            top: '-100px',
             animationDuration: `${10 / char.speed}s`,
             animationDelay: `${Math.random() * 10}s`,
             opacity: char.opacity,

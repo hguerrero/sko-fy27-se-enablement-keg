@@ -4,7 +4,12 @@
 
 /* Matrix theme custom styles */
 body {
-  @apply bg-matrix-black text-matrix-green font-mono overflow-hidden;
+  @apply bg-matrix-black text-matrix-green font-mono;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow-x: hidden;
 }
 
 /* Matrix rain effect background */

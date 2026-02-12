@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Network, Server, Shield, Key, Globe, Users, Database, Activity, Settings } from 'lucide-react';
+import { Activity, Database, Globe, Key, Network, Server, Settings, Shield, Users } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 interface VirtualCluster {
   id: string;
@@ -23,8 +23,101 @@ interface VirtualCluster {
 const VirtualClusters: React.FC = () => {
   const [clusters, setClusters] = useState<VirtualCluster[]>([]);
   const [selectedCluster, setSelectedCluster] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [topicsLoading, setTopicsLoading] = useState(false);
 
-  useEffect(() => {
+  // Fetch cluster data from API
+  const fetchClusters = useCallback(async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/clusters');
+      if (response.ok) {
+        const apiClusters = await response.json();
+        
+        // Static configuration to merge with API data
+        const staticConfig = {
+          'ny_1999': {
+            ports: '19192-19290',
+            authentication: 'anonymous',
+            prefix: 'WORLD_NY_1999',
+            description: 'Matrix simulation layer representing New York City in 1999',
+            theme: '🏙️ Urban Matrix',
+            topics: [
+              'WORLD_NY_1999.yellow_cab_dispatch',
+              'WORLD_NY_1999.subway_commuter_density',
+              'WORLD_NY_1999.stock_exchange_ticker',
+              'WORLD_NY_1999.system_machine_status',
+              'WORLD_NY_1999.weather_pattern_emulation'
+            ],
+            acl: {
+              enabled: false,
+              policies: ['anonymous_access']
+            }
+          },
+          'la_2024': {
+            ports: '19292-19390',
+            authentication: 'SASL/PLAIN',
+            prefix: 'WORLD_LA_2024',
+            description: 'Matrix simulation layer representing Los Angeles in 2024',
+            theme: '🌴 Future Matrix',
+            topics: [
+              'WORLD_LA_2024.ev_charging_logs',
+              'WORLD_LA_2024.daily_commute_stats',
+              'WORLD_LA_2024.social_media_sentiment',
+              'WORLD_LA_2024.system_machine_status',
+              'WORLD_LA_2024.weather_pattern_emulation'
+            ],
+            acl: {
+              enabled: true,
+              policies: ['redpill_rebels_access', 'authenticated_users']
+            }
+          },
+          'machine_core': {
+            ports: '19092-19190',
+            authentication: 'anonymous (passthru)',
+            prefix: '',
+            description: 'Core machine intelligence processing hub',
+            theme: '🤖 Machine Intelligence',
+            topics: [
+              'anomaly_detection_pings',
+              'knowledge_ingestion',
+              'bio_electric_yield',
+              'biomass_efficiency_logs',
+              'system_update_protocol',
+              'tactical_strike_command'
+            ],
+            acl: {
+              enabled: true,
+              policies: ['machine_core_access', 'agent_smith_override', 'architect_level_clearance']
+            }
+          }
+        };
+
+        // Merge API data with static configuration
+        const mergedClusters = apiClusters.map((apiCluster: any) => ({
+          ...apiCluster,
+          ...staticConfig[apiCluster.id as keyof typeof staticConfig]
+        }));
+
+        setClusters(mergedClusters);
+        if (mergedClusters.length > 0) {
+          setSelectedCluster(mergedClusters[0].id);
+        }
+      } else {
+        console.error('Failed to fetch clusters');
+        // Fallback to static data
+        setFallbackClusters();
+      }
+    } catch (error) {
+      console.error('Error fetching clusters:', error);
+      // Fallback to static data
+      setFallbackClusters();
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Fallback static clusters
+  const setFallbackClusters = () => {
     const virtualClusters: VirtualCluster[] = [
       {
         id: 'ny_1999',
@@ -75,7 +168,7 @@ const VirtualClusters: React.FC = () => {
         }
       },
       {
-        id: 'machine_city',
+        id: 'machine_core',
         name: 'Machine_City_Core',
         displayName: 'Machine City Core Processing',
         ports: '19092-19190',
@@ -103,18 +196,58 @@ const VirtualClusters: React.FC = () => {
 
     setClusters(virtualClusters);
     setSelectedCluster(virtualClusters[0].id);
+  };
 
-    // Simulate real-time updates
+  // Fetch topics for a specific cluster
+  const fetchClusterTopics = useCallback(async (clusterId: string) => {
+    if (!clusterId) return;
+    
+    try {
+      setTopicsLoading(true);
+      const response = await fetch(`http://localhost:3001/api/clusters/${clusterId}/topics`);
+      if (response.ok) {
+        const topics = await response.json();
+
+        // Update the cluster with live topic data
+        setClusters(prev => prev.map(cluster => {
+          if (cluster.id === clusterId) {
+            return {
+              ...cluster,
+              topics: topics.map((topic: any) => topic.name)
+            };
+          }
+          return cluster;
+        }));
+      } else {
+        console.error('Failed to fetch topics for cluster:', clusterId);
+      }
+    } catch (error) {
+      console.error('Error fetching cluster topics:', error);
+    } finally {
+      setTopicsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchClusters();
+
+    // Real-time updates for connections and events per second
     const interval = setInterval(() => {
       setClusters(prev => prev.map(cluster => ({
         ...cluster,
-        connections: cluster.connections + Math.floor(Math.random() * 3) - 1,
+        connections: Math.max(0, cluster.connections + Math.floor(Math.random() * 3) - 1),
         eventsPerSec: Math.max(0, cluster.eventsPerSec + Math.floor(Math.random() * 10) - 5)
       })));
     }, 3000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchClusters]);
+
+  useEffect(()=> {
+if (selectedCluster) {
+      fetchClusterTopics(selectedCluster);
+    }
+  }, [selectedCluster, fetchClusterTopics]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -137,7 +270,7 @@ const VirtualClusters: React.FC = () => {
   const selectedClusterData = clusters.find(c => c.id === selectedCluster);
 
   return (
-    <div className="p-6 pb-12 space-y-6">
+    <div className="p-6 pb-16 space-y-6 min-h-full">
       {/* Header */}
       <div className="text-center mb-8">
         <div className="flex items-center justify-center gap-3 mb-4">
@@ -149,8 +282,18 @@ const VirtualClusters: React.FC = () => {
         </div>
       </div>
 
-      {/* Cluster Overview Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Loading State */}
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="inline-flex items-center gap-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-matrix-green border-t-transparent"></div>
+            <span className="text-matrix-green text-lg">Loading cluster information...</span>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Cluster Overview Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {clusters.map((cluster, index) => (
           <div 
             key={cluster.id} 
@@ -329,22 +472,41 @@ const VirtualClusters: React.FC = () => {
         <div className="terminal-window">
           <div className="terminal-header">
             <Database className="w-4 h-4 text-matrix-green" />
-            <span className="ml-2">TOPICS - {selectedClusterData.name}</span>
+            <span className="ml-2">DATA STREAMS - {selectedClusterData.name}</span>
+            {topicsLoading && (
+              <div className="ml-auto">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-matrix-green border-t-transparent"></div>
+              </div>
+            )}
           </div>
           <div className="terminal-content">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {selectedClusterData.topics.map((topic, index) => (
-                <div key={index} className="border border-matrix-darkgreen rounded p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-sm font-semibold text-matrix-green">{topic}</div>
-                    <div className="status-indicator status-active"></div>
-                  </div>
-                  <div className="text-xs text-matrix-darkgreen">
-                    Active | Schema Validated | Monitored
-                  </div>
+            {topicsLoading ? (
+              <div className="text-center py-8">
+                <div className="inline-flex items-center gap-2 text-matrix-green">
+                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-matrix-green border-t-transparent"></div>
+                  <span>Loading topics...</span>
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {selectedClusterData.topics.map((topic, index) => (
+                  <div key={index} className="border border-matrix-darkgreen rounded p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm font-semibold text-matrix-green truncate" title={topic}>{topic}</div>
+                      <div className="status-indicator status-active"></div>
+                    </div>
+                    <div className="text-xs text-matrix-darkgreen">
+                      Active | Schema Validated | Monitored
+                    </div>
+                  </div>
+                ))}
+                {selectedClusterData.topics.length === 0 && !topicsLoading && (
+                  <div className="col-span-full text-center py-8 text-matrix-darkgreen">
+                    No topics found for this cluster
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -388,6 +550,8 @@ const VirtualClusters: React.FC = () => {
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 };

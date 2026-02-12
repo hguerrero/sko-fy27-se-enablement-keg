@@ -1,7 +1,49 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Server, Database, Shield, Eye, Network, Activity } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
+  const [dataGeneratorStatus, setDataGeneratorStatus] = useState<'stopped' | 'running' | 'starting' | 'stopping' | 'error'>('stopped');
+
+  useEffect(() => {
+    // Check data generator status on mount
+    const checkDataGeneratorStatus = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/data-generator/status');
+        if (response.ok) {
+          const data = await response.json();
+          setDataGeneratorStatus(data.status);
+        }
+      } catch (error) {
+        console.error('Failed to check data generator status:', error);
+      }
+    };
+    
+    checkDataGeneratorStatus();
+    
+    // Poll every 5 seconds
+    const interval = setInterval(checkDataGeneratorStatus, 5000);
+    return () => clearInterval(interval);
+  }, []);
+  const getDataGeneratorStatusColor = (status: string) => {
+    switch (status) {
+      case 'running': return 'text-matrix-green';
+      case 'starting': case 'stopping': return 'text-yellow-400';
+      case 'stopped': return 'text-gray-500';
+      case 'error': return 'text-red-400';
+      default: return 'text-gray-500';
+    }
+  };
+
+  const getDataGeneratorStatusIndicator = (status: string) => {
+    switch (status) {
+      case 'running': return 'status-active';
+      case 'starting': case 'stopping': return 'status-indicator bg-yellow-400 animate-pulse';
+      case 'stopped': return 'status-inactive';
+      case 'error': return 'status-error';
+      default: return 'status-inactive';
+    }
+  };
+
   const architectureComponents = [
     {
       name: 'Sim_1999_NY',
@@ -47,14 +89,14 @@ const Dashboard: React.FC = () => {
   ];
 
   const metrics = [
-    { label: 'Events/sec', value: '847', trend: '+12%' },
+    { label: 'Events/sec', value: dataGeneratorStatus === 'running' ? '847' : '0', trend: dataGeneratorStatus === 'running' ? '+12%' : 'simulated' },
     { label: 'Virtual Clusters', value: '3', trend: 'stable' },
     { label: 'Active Topics', value: '21', trend: '+2' },
     { label: 'Anomalies Detected', value: '4', trend: '+1' },
   ];
 
   return (
-    <div className="p-6 pb-12 space-y-6">
+    <div className="p-6 pb-16 space-y-6 min-h-full">
       {/* Header */}
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold mb-2 animate-glow">THE MATRIX</h1>
@@ -117,16 +159,16 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* AI Agents Status */}
+      {/* AI Agents & Data Sources Status */}
       <div className="terminal-window">
         <div className="terminal-header">
           <div className="terminal-button bg-matrix-red"></div>
           <div className="terminal-button bg-yellow-500"></div>
           <div className="terminal-button bg-matrix-green"></div>
-          <span className="ml-2 font-semibold">AI AGENTS STATUS</span>
+          <span className="ml-2 font-semibold">AI AGENTS & DATA SOURCES</span>
         </div>
         <div className="terminal-content">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {agents.map((agent, index) => (
               <div key={index} className="border border-matrix-darkgreen rounded p-4">
                 <div className="flex items-center gap-3 mb-3">
@@ -145,6 +187,28 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
             ))}
+            
+            {/* Data Generator Status */}
+            <div className="border border-matrix-darkgreen rounded p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <Database className="w-6 h-6 text-matrix-green" />
+                <div>
+                  <h3 className="font-semibold text-matrix-green">Data Generator</h3>
+                  <div className="text-xs text-matrix-darkgreen">Event stream production service</div>
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <div className={`status-indicator ${getDataGeneratorStatusIndicator(dataGeneratorStatus)}`}></div>
+                  <span className={`text-sm uppercase ${getDataGeneratorStatusColor(dataGeneratorStatus)}`}>
+                    {dataGeneratorStatus}
+                  </span>
+                </div>
+                <div className="text-xs text-matrix-darkgreen">
+                  {dataGeneratorStatus === 'running' ? 'Active' : 'Standby'}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -162,7 +226,7 @@ const Dashboard: React.FC = () => {
             <div className="flex items-center gap-3">
               <span className="text-matrix-darkgreen">[{new Date().toLocaleTimeString()}]</span>
               <Activity className="w-4 h-4 text-matrix-green" />
-              <span>Data generator producing to WORLD_NY_1999.yellow_cab_dispatch</span>
+              <span>Data generator {dataGeneratorStatus === 'running' ? 'producing live events' : 'using simulated data'}</span>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-matrix-darkgreen">[{new Date(Date.now() - 5000).toLocaleTimeString()}]</span>

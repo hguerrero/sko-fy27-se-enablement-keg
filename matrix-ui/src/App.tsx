@@ -75,10 +75,10 @@ function App() {
         </div>
       </header>
 
-      <div className="flex h-screen">
+      <div className="flex h-[calc(100vh-5rem)]">
         {/* Sidebar Navigation */}
-        <nav className="relative z-10 w-64 bg-matrix-black/90 border-r border-matrix-darkgreen backdrop-blur">
-          <div className="p-4">
+        <nav className="w-64 bg-matrix-black/90 border-r border-matrix-darkgreen backdrop-blur flex-shrink-0">
+          <div className="p-4 h-full overflow-y-auto">
             <div className="space-y-2">
               {navigation.map(({ id, label, icon: Icon }) => (
                 <button
@@ -127,10 +127,8 @@ function App() {
         </nav>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto relative z-10">
-          <div className="pb-8">
-            {renderView()}
-          </div>
+        <main className="flex-1 overflow-y-auto bg-matrix-black">
+          {renderView()}
         </main>
       </div>
     </div>
