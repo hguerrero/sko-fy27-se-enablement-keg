@@ -7,7 +7,23 @@ A lightweight LLM reasoning agent built with the [Volcano SDK](https://volcano.d
 ## How It Works
 
 ```
-CLI prompt ──▶ Volcano SDK agent ──▶ OpenAI LLM ──▶ stdout
+                          ┌─────────────────────┐
+                          │   Volcano SDK       │
+                          │  (agent pipeline)   │
+                          └─────────┬───────────┘
+                                    │
+  Command Line                      │                    Terminal Output
+┌─────────────────┐    process.argv │   stdout     ┌──────────────────────┐
+│ npm start       │ ──────────────▶ │  ──────────▶ │ "Agent 007 active.   │
+│ "Analyze sector │                 │              │ Monitoring sector 12  │
+│ 12 anomalies"   │                 │              │ power fluctuations..."│
+└─────────────────┘                 │              └──────────────────────┘
+                                    │
+                          ┌─────────▼───────────┐
+                          │    OpenAI LLM       │
+                          │   (gpt-4o-mini)     │
+                          │  reasoning engine   │
+                          └─────────────────────┘
 ```
 
 The agent runs a single LLM reasoning step using Volcano SDK's `agent().then({ prompt }).run()` pipeline. If no prompt is provided, it defaults to a sentinel persona that reports on its current target status.
