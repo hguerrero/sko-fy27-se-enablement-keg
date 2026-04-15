@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { Database, Play, Pause, Shield, Zap, Server } from 'lucide-react';
+import { Database, Play, Pause, Shield, Zap, Server, Send, X } from 'lucide-react';
 
 interface Cluster {
   id: string;
@@ -42,6 +42,60 @@ const Dashboard: React.FC = () => {
   const [streamingTopic, setStreamingTopic] = useState<Topic | null>(null);
   const [streamEvents, setStreamEvents] = useState<StreamEvent[]>([]);
   const eventSourceRef = useRef<EventSource | null>(null);
+  
+  const [showProducer, setShowProducer] = useState(false);
+  const [producerTopic, setProducerTopic] = useState<Topic | null>(null);
+  const [customPayload, setCustomPayload] = useState('');
+  const [isProducing, setIsProducing] = useState(false);
+  const [produceStatus, setProduceStatus] = useState<string>('');
+
+  const getDefaultPayload = () => {
+    const timestamp = new Date().toISOString();
+    return JSON.stringify({
+      timestamp,
+      source: "AGENT_JONES",
+      anomaly_type: "PHYSICS_VIOLATION",
+      coordinates: "40.7128° N, 74.0060° W",
+      target_alias: "MORPHEUS"
+    }, null, 2);
+  };
+
+  const openProducer = (topic: Topic) => {
+    setProducerTopic(topic);
+    setCustomPayload(getDefaultPayload());
+    setProduceStatus('');
+    setShowProducer(true);
+  };
+
+  const sendEvent = async () => {
+    if (!producerTopic) return;
+    
+    setIsProducing(true);
+    setProduceStatus('Sending...');
+    
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/clusters/${producerTopic.clusterId}/topics/${producerTopic.name}/produce`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: customPayload
+        }
+      );
+      
+      if (response.ok) {
+        setProduceStatus('Event sent successfully');
+        setTimeout(() => setShowProducer(false), 1500);
+      } else {
+        const error = await response.text();
+        setProduceStatus(`Error: ${error}`);
+      }
+    } catch (err) {
+      setProduceStatus('Failed to send event');
+    } finally {
+      setIsProducing(false);
+    }
+  };
 
   const fetchClusters = useCallback(async () => {
     try {
@@ -378,11 +432,18 @@ const Dashboard: React.FC = () => {
                           <div className="text-sm font-mono text-matrix-green">{topic.name}</div>
                           <div className="text-xs text-matrix-darkgreen">{topic.description}</div>
                         </div>
-                        <div className="text-right ml-4 flex items-center gap-3">
+                        <div className="text-right ml-4 flex items-center gap-2">
                           <div>
                             <div className="text-sm text-matrix-green">{topic.eventsPerSec}/s</div>
                             <div className="text-xs text-matrix-darkgreen">{topic.cluster}</div>
                           </div>
+                          <button 
+                            onClick={() => openProducer(topic)}
+                            className="matrix-button text-xs border-matrix-yellow text-matrix-yellow hover:bg-matrix-yellow/20"
+                            title="Produce custom event"
+                          >
+                            <Send className="w-3 h-3" />
+                          </button>
                           {streamingTopic?.name === topic.name ? (
                             <button 
                               onClick={stopStreaming}
@@ -508,6 +569,62 @@ const Dashboard: React.FC = () => {
                   <div className="mt-2">
                     <div className="text-matrix-darkgreen text-xs mb-1">Description:</div>
                     <div className="text-sm text-matrix-green">{lastEvent.description}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showProducer && (
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+              <div className="terminal-window w-full max-w-2xl mx-4">
+                <div className="terminal-header">
+                  <Send className="w-4 h-4 text-matrix-yellow" />
+                  <span className="ml-2 font-semibold text-matrix-yellow">PRODUCE EVENT</span>
+                  <div className="ml-auto flex items-center gap-2">
+                    <span className="text-xs text-matrix-darkgreen font-mono">{producerTopic?.name}</span>
+                    <button 
+                      onClick={() => setShowProducer(false)}
+                      className="text-matrix-darkgreen hover:text-matrix-green"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="terminal-content space-y-4">
+                  <div>
+                    <label className="block text-sm text-matrix-darkgreen mb-2">
+                      Custom JSON Payload
+                    </label>
+                    <textarea
+                      value={customPayload}
+                      onChange={(e) => setCustomPayload(e.target.value)}
+                      className="matrix-input w-full h-64 font-mono text-xs resize-none"
+                      spellCheck={false}
+                    />
+                  </div>
+                  
+                  {produceStatus && (
+                    <div className={`text-sm ${produceStatus.includes('Error') || produceStatus.includes('Failed') ? 'text-red-400' : 'text-matrix-green'}`}>
+                      {produceStatus}
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end gap-3">
+                    <button 
+                      onClick={() => setShowProducer(false)}
+                      className="matrix-button text-xs"
+                    >
+                      CANCEL
+                    </button>
+                    <button 
+                      onClick={sendEvent}
+                      disabled={isProducing || !customPayload.trim()}
+                      className="matrix-button text-xs bg-matrix-green/20 border-matrix-green text-matrix-green hover:bg-matrix-green hover:text-matrix-black disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      <Send className="w-3 h-3" />
+                      {isProducing ? 'SENDING...' : 'PRODUCE'}
+                    </button>
                   </div>
                 </div>
               </div>

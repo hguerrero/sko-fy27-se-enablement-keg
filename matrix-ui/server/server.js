@@ -899,6 +899,39 @@ function generateEventValue(topic) {
   }
 }
 
+// Produce event endpoint
+app.post("/api/clusters/:clusterId/topics/:topic/produce", async (req, res) => {
+  const { clusterId, topic } = req.params;
+  const kafka = kafkaConnections[clusterId];
+  
+  if (!kafka) {
+    return res.status(400).json({ error: "Invalid cluster ID" });
+  }
+
+  try {
+    const producer = kafka.producer();
+    await producer.connect();
+    
+    await producer.send({
+      topic: topic,
+      messages: [
+        { 
+          key: `manual_${Date.now()}`,
+          value: typeof req.body === 'string' ? req.body : JSON.stringify(req.body)
+        }
+      ]
+    });
+
+    await producer.disconnect();
+    
+    console.log(`Produced event to ${topic} on cluster ${clusterId}`);
+    res.json({ message: "Event produced successfully", topic, clusterId });
+  } catch (error) {
+    console.error(`Failed to produce event:`, error);
+    res.status(500).json({ error: "Failed to produce event", details: error.message });
+  }
+});
+
 // Simulate new anomalies occasionally
 setInterval(() => {
   if (Math.random() > 0.95) {
