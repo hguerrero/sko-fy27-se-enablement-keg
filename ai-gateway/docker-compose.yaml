@@ -1,6 +1,6 @@
 services:
   kong:
-    image: kong/kong-gateway:3.13
+    image: kong/kong-gateway:3.14
     hostname: kong
     # container_name: kong
     ports:

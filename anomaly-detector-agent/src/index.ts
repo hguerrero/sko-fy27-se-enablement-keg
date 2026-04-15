@@ -69,6 +69,8 @@ async function ingestToRag(enrichedPayload: string, ragSnippet: string): Promise
 
   const enriched = JSON.parse(enrichedPayload);
 
+  console.log(ragSnippet)
+
   const chunk = {
     content: ragSnippet,
     metadata: {

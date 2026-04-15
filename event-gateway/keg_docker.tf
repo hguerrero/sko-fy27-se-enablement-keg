@@ -26,7 +26,7 @@ resource "docker_container" "keg_data_plane" {
     "KAFKA_USERNAME=${var.kafka_username}",
     "KAFKA_PASSWORD=${var.kafka_password}",
     "KEG__OBSERVABILITY__LOG_FLAGS=info,keg=debug",
-    "SENTINAL_ENCRYPTION_KEY=${var.sentinal_encryption_key}"
+    # "SENTINAL_ENCRYPTION_KEY=${random_bytes.sentinal_encryption_key.base64}"
   ]
 
   # Port range 19092-19390 mapped 1:1
@@ -161,7 +161,7 @@ resource "terraform_data" "create_topics" {
       while IFS= read -r topic || [ -n "$topic" ]; do
         [ -z "$topic" ] && continue
         echo "  → Creating topic: $topic"
-        docker exec kafka1 /opt/kafka/bin/kafka-topics.sh \
+        docker exec kafka_cluster-kafka1-1 /opt/kafka/bin/kafka-topics.sh \
           --bootstrap-server kafka1:9092 \
           --create \
           --if-not-exists \

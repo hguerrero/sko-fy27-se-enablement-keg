@@ -1,30 +1,198 @@
-import React, { useEffect, useState } from 'react';
-import { Server, Database, Shield, Eye, Network, Activity } from 'lucide-react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { Database, Play, Pause, Shield, Zap, Server } from 'lucide-react';
+
+interface Cluster {
+  id: string;
+  name: string;
+  displayName: string;
+  status: string;
+  connections: number;
+  eventsPerSec: number;
+}
+
+interface Topic {
+  name: string;
+  cluster: string;
+  clusterId: string;
+  eventsPerSec: number;
+  totalEvents: number;
+  status: string;
+  description: string;
+}
+
+interface StreamEvent {
+  id: string;
+  topic: string;
+  timestamp: string;
+  partition: number;
+  offset: number;
+  key: string | null;
+  value: any;
+}
 
 const Dashboard: React.FC = () => {
-  const [dataGeneratorStatus, setDataGeneratorStatus] = useState<'stopped' | 'running' | 'starting' | 'stopping' | 'error'>('stopped');
+  const [clusters, setClusters] = useState<Cluster[]>([]);
+  const [selectedCluster, setSelectedCluster] = useState<string>('');
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [topicsLoading, setTopicsLoading] = useState(false);
+  const [dataGenStatus, setDataGenStatus] = useState<'stopped' | 'running' | 'starting' | 'stopping' | 'error'>('stopped');
+  const [lastEvent, setLastEvent] = useState<any>(null);
+  
+  const [streamingTopic, setStreamingTopic] = useState<Topic | null>(null);
+  const [streamEvents, setStreamEvents] = useState<StreamEvent[]>([]);
+  const eventSourceRef = useRef<EventSource | null>(null);
+
+  const fetchClusters = useCallback(async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/clusters');
+      if (response.ok) {
+        const data = await response.json();
+        setClusters(data);
+        if (data.length > 0 && !selectedCluster) {
+          setSelectedCluster(data[0].id);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch clusters:', error);
+    }
+  }, [selectedCluster]);
+
+  const fetchTopics = useCallback(async (clusterId: string) => {
+    if (!clusterId) return;
+    setTopicsLoading(true);
+    try {
+      const response = await fetch(`http://localhost:3001/api/clusters/${clusterId}/topics`);
+      if (response.ok) {
+        const data = await response.json();
+        setTopics(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch topics:', error);
+    } finally {
+      setTopicsLoading(false);
+    }
+  }, []);
+
+  const fetchDataGenStatus = useCallback(async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/data-generator/status');
+      if (response.ok) {
+        const data = await response.json();
+        setDataGenStatus(data.status);
+      }
+    } catch (error) {
+      console.error('Failed to fetch data generator status:', error);
+    }
+  }, []);
+
+  const fetchAnomalies = useCallback(async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/anomalies');
+      if (response.ok) {
+        const data = await response.json();
+        setLastEvent(data[0]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch anomalies:', error);
+    }
+  }, []);
 
   useEffect(() => {
-    // Check data generator status on mount
-    const checkDataGeneratorStatus = async () => {
-      try {
-        const response = await fetch('http://localhost:3001/api/data-generator/status');
-        if (response.ok) {
-          const data = await response.json();
-          setDataGeneratorStatus(data.status);
-        }
-      } catch (error) {
-        console.error('Failed to check data generator status:', error);
+    const init = async () => {
+      setLoading(true);
+      await fetchClusters();
+      await fetchDataGenStatus();
+      await fetchAnomalies();
+      setLoading(false);
+    };
+    init();
+
+    const interval = setInterval(() => {
+      fetchDataGenStatus();
+      fetchAnomalies();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [fetchClusters, fetchDataGenStatus, fetchAnomalies]);
+
+  useEffect(() => {
+    if (selectedCluster) {
+      fetchTopics(selectedCluster);
+    }
+  }, [selectedCluster, fetchTopics]);
+
+  useEffect(() => {
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
       }
     };
-    
-    checkDataGeneratorStatus();
-    
-    // Poll every 5 seconds
-    const interval = setInterval(checkDataGeneratorStatus, 5000);
-    return () => clearInterval(interval);
   }, []);
-  const getDataGeneratorStatusColor = (status: string) => {
+
+  const startDataGen = async () => {
+    try {
+      setDataGenStatus('starting');
+      await fetch('http://localhost:3001/api/data-generator/start', { method: 'POST' });
+    } catch (error) {
+      console.error('Failed to start data generator:', error);
+      setDataGenStatus('error');
+    }
+  };
+
+  const stopDataGen = async () => {
+    try {
+      setDataGenStatus('stopping');
+      await fetch('http://localhost:3001/api/data-generator/stop', { method: 'POST' });
+    } catch (error) {
+      console.error('Failed to stop data generator:', error);
+      setDataGenStatus('error');
+    }
+  };
+
+  const startStreaming = (topic: Topic) => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+    }
+    
+    setStreamingTopic(topic);
+    setStreamEvents([]);
+
+    const url = `http://localhost:3001/api/clusters/${topic.clusterId}/topics/${topic.name}/events/stream`;
+    const eventSource = new EventSource(url);
+    eventSourceRef.current = eventSource;
+
+    eventSource.onopen = () => {
+      console.log(`Connected to ${topic.name}`);
+    };
+
+    eventSource.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        if (message.type === 'event') {
+          setStreamEvents(prev => [message.data, ...prev.slice(0, 49)]);
+        }
+      } catch (e) {
+        console.error('Failed to parse event:', e);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('SSE error:', error);
+      stopStreaming();
+    };
+  };
+
+  const stopStreaming = () => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+    setStreamingTopic(null);
+    setStreamEvents([]);
+  };
+
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'running': return 'text-matrix-green';
       case 'starting': case 'stopping': return 'text-yellow-400';
@@ -34,7 +202,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const getDataGeneratorStatusIndicator = (status: string) => {
+  const getStatusIndicator = (status: string) => {
     switch (status) {
       case 'running': return 'status-active';
       case 'starting': case 'stopping': return 'status-indicator bg-yellow-400 animate-pulse';
@@ -44,208 +212,309 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const architectureComponents = [
-    {
-      name: 'Sim_1999_NY',
-      port: '19192-19290',
-      auth: 'anonymous',
-      prefix: 'WORLD_NY_1999',
-      status: 'active',
-      description: 'New York 1999 simulation layer'
-    },
-    {
-      name: 'Sim_2024_LA',
-      port: '19292-19390',
-      auth: 'SASL/PLAIN',
-      prefix: 'WORLD_LA_2024',
-      status: 'active',
-      description: 'Los Angeles 2024 simulation layer'
-    },
-    {
-      name: 'Machine_City_Core',
-      port: '19092-19190',
-      auth: 'anonymous (passthru)',
-      prefix: '',
-      status: 'active',
-      description: 'Core machine city processing'
-    },
-  ];
+  const renderEventData = (topicName: string, value: any) => {
+    if (topicName.includes('yellow_cab_dispatch')) {
+      return (
+        <div className="flex flex-wrap gap-4 text-xs">
+          <span><span className="text-matrix-darkgreen">ID:</span> <span className="text-matrix-green font-mono">{value.cab_id}</span></span>
+          <span><span className="text-matrix-darkgreen">Zone:</span> <span className="text-matrix-green">{value.zone}</span></span>
+          <span><span className="text-matrix-darkgreen">Status:</span> <span className={`font-mono ${
+            value.status === 'completed' ? 'text-matrix-green' :
+            value.status === 'cancelled' ? 'text-red-400' : 'text-yellow-400'
+          }`}>{value.status}</span></span>
+          <span><span className="text-matrix-darkgreen">Passengers:</span> <span className="text-matrix-green">{value.passengers}</span></span>
+          <span><span className="text-matrix-darkgreen">Fare:</span> <span className="text-matrix-green">${value.fare_usd}</span></span>
+          <span><span className="text-matrix-darkgreen">Distance:</span> <span className="text-matrix-green">{value.distance_miles} mi</span></span>
+        </div>
+      );
+    }
+    
+    if (topicName.includes('ev_charging_logs')) {
+      return (
+        <div className="flex flex-wrap gap-4 text-xs">
+          <span><span className="text-matrix-darkgreen">Vehicle:</span> <span className="text-matrix-green">{value.vehicle_make}</span></span>
+          <span><span className="text-matrix-darkgreen">Station:</span> <span className="text-matrix-green truncate max-w-[150px]" title={value.station}>{value.station}</span></span>
+          <span><span className="text-matrix-darkgreen">Status:</span> <span className={`font-mono ${
+            value.status === 'completed' ? 'text-matrix-green' :
+            value.status === 'error' ? 'text-red-400' : 'text-yellow-400'
+          }`}>{value.status}</span></span>
+          <span><span className="text-matrix-darkgreen">Energy:</span> <span className="text-matrix-green">{value.kwh_delivered} kWh</span></span>
+          <span><span className="text-matrix-darkgreen">Cost:</span> <span className="text-matrix-green">${value.cost_usd}</span></span>
+          <span><span className="text-matrix-darkgreen">Battery:</span> <span className="text-matrix-green">{value.battery_pct}%</span></span>
+          <span><span className="text-matrix-darkgreen">Connector:</span> <span className="text-matrix-green">{value.connector_type}</span></span>
+        </div>
+      );
+    }
+    
+    return null;
+  };
 
-  const agents = [
-    {
-      name: 'Anomaly Detector Agent',
-      description: 'Kafka → LLM → Kafka enrichment pipeline',
-      status: 'running',
-      lastActivity: '2s ago',
-      icon: Shield
-    },
-    {
-      name: 'Sentinel Agent',
-      description: 'LLM reasoning via Volcano SDK',
-      status: 'scanning',
-      lastActivity: '5s ago',
-      icon: Eye
-    },
-  ];
-
-  const metrics = [
-    { label: 'Events/sec', value: dataGeneratorStatus === 'running' ? '847' : '0', trend: dataGeneratorStatus === 'running' ? '+12%' : 'simulated' },
-    { label: 'Virtual Clusters', value: '3', trend: 'stable' },
-    { label: 'Active Topics', value: '21', trend: '+2' },
-    { label: 'Anomalies Detected', value: '4', trend: '+1' },
-  ];
+  const totalEventsPerSec = topics.reduce((sum, t) => sum + t.eventsPerSec, 0);
 
   return (
-    <div className="p-6 pb-16 space-y-6 min-h-full">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold mb-2 animate-glow">THE MATRIX</h1>
-        <p className="text-matrix-darkgreen text-lg">
-          "The Matrix is everywhere. It is all around us. Even now, in this very room."
-        </p>
+    <div className="p-6 space-y-6 min-h-full">
+      <div className="text-center mb-6">
+        <h1 className="text-3xl font-bold text-matrix-green animate-glow">KAFKA AGENTS</h1>
+        <p className="text-matrix-darkgreen">Event-driven AI processing pipeline</p>
       </div>
 
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {metrics.map((metric, index) => (
-          <div key={index} className="terminal-window">
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="inline-flex items-center gap-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-matrix-green border-t-transparent"></div>
+            <span className="text-matrix-green">Loading...</span>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="terminal-window">
+              <div className="terminal-content text-center">
+                <div className="text-3xl font-bold text-matrix-green">{totalEventsPerSec}</div>
+                <div className="text-sm text-matrix-darkgreen">Events/sec</div>
+              </div>
+            </div>
+            <div className="terminal-window">
+              <div className="terminal-content text-center">
+                <div className="text-3xl font-bold text-matrix-green">{topics.length}</div>
+                <div className="text-sm text-matrix-darkgreen">Active Topics</div>
+              </div>
+            </div>
+            <div className="terminal-window">
+              <div className="terminal-content text-center">
+                <div className="text-3xl font-bold text-red-400">{lastEvent ? 1 : 0}</div>
+                <div className="text-sm text-matrix-darkgreen">Anomalies</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="terminal-window">
+            <div className="terminal-header">
+              <div className={`status-indicator ${getStatusIndicator(dataGenStatus)}`}></div>
+              <span className="ml-2 font-semibold">DATA GENERATOR</span>
+              <div className="ml-auto flex items-center gap-3">
+                <span className={`text-sm uppercase ${getStatusColor(dataGenStatus)}`}>{dataGenStatus}</span>
+                {dataGenStatus === 'stopped' || dataGenStatus === 'error' ? (
+                  <button onClick={startDataGen} className="matrix-button text-xs flex items-center gap-1">
+                    <Play className="w-3 h-3" /> START
+                  </button>
+                ) : (
+                  <button onClick={stopDataGen} className="matrix-button text-xs flex items-center gap-1">
+                    <Pause className="w-3 h-3" /> STOP
+                  </button>
+                )}
+              </div>
+            </div>
             <div className="terminal-content">
-              <div className="text-2xl font-bold text-matrix-green">{metric.value}</div>
-              <div className="text-sm text-matrix-darkgreen">{metric.label}</div>
-              <div className="text-xs mt-1 text-matrix-green">{metric.trend}</div>
+              <p className="text-sm text-matrix-darkgreen">
+                {dataGenStatus === 'running' 
+                  ? 'Producing events to Kafka topics...' 
+                  : dataGenStatus === 'stopped'
+                    ? 'Start the generator to produce events to Kafka.'
+                    : 'Processing...'}
+              </p>
             </div>
           </div>
-        ))}
-      </div>
 
-      {/* Architecture Overview */}
-      <div className="terminal-window">
-        <div className="terminal-header">
-          <div className="terminal-button bg-matrix-red"></div>
-          <div className="terminal-button bg-yellow-500"></div>
-          <div className="terminal-button bg-matrix-green"></div>
-          <span className="ml-2 font-semibold">KONG EVENT GATEWAY ARCHITECTURE</span>
-        </div>
-        <div className="terminal-content">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {architectureComponents.map((component, index) => (
-              <div key={index} className="border border-matrix-darkgreen rounded p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-matrix-green">{component.name}</h3>
-                  <div className="flex items-center gap-1">
-                    <div className="status-indicator status-active"></div>
-                    <span className="text-xs text-matrix-darkgreen">ACTIVE</span>
-                  </div>
-                </div>
-                <div className="space-y-1 text-sm text-matrix-darkgreen">
-                  <div>Port: {component.port}</div>
-                  <div>Auth: {component.auth}</div>
-                  {component.prefix && <div>Prefix: {component.prefix}</div>}
-                  <div className="text-xs mt-2">{component.description}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-6 p-4 border border-matrix-darkgreen rounded bg-matrix-darkgray/20">
-            <div className="flex items-center gap-2 mb-2">
-              <Database className="w-5 h-5 text-matrix-green" />
-              <span className="font-semibold">Source-Zero-Mainframe</span>
+          <div className="terminal-window">
+            <div className="terminal-header">
+              <Server className="w-4 h-4 text-matrix-green" />
+              <span className="ml-2 font-semibold">VIRTUAL CLUSTERS</span>
             </div>
-            <div className="text-sm text-matrix-darkgreen">
-              Backend Kafka Cluster (3-node KRaft configuration)
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* AI Agents & Data Sources Status */}
-      <div className="terminal-window">
-        <div className="terminal-header">
-          <div className="terminal-button bg-matrix-red"></div>
-          <div className="terminal-button bg-yellow-500"></div>
-          <div className="terminal-button bg-matrix-green"></div>
-          <span className="ml-2 font-semibold">AI AGENTS & DATA SOURCES</span>
-        </div>
-        <div className="terminal-content">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {agents.map((agent, index) => (
-              <div key={index} className="border border-matrix-darkgreen rounded p-4">
-                <div className="flex items-center gap-3 mb-3">
-                  <agent.icon className="w-6 h-6 text-matrix-green" />
-                  <div>
-                    <h3 className="font-semibold text-matrix-green">{agent.name}</h3>
-                    <div className="text-xs text-matrix-darkgreen">{agent.description}</div>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <div className="status-indicator status-active"></div>
-                    <span className="text-sm text-matrix-green uppercase">{agent.status}</span>
-                  </div>
-                  <div className="text-xs text-matrix-darkgreen">{agent.lastActivity}</div>
-                </div>
+            <div className="terminal-content">
+              <div className="flex flex-wrap gap-2 mb-6">
+                {clusters.map(cluster => (
+                  <button
+                    key={cluster.id}
+                    onClick={() => setSelectedCluster(cluster.id)}
+                    className={`flex items-center gap-3 px-4 py-3 border rounded transition-all ${
+                      selectedCluster === cluster.id
+                        ? 'border-matrix-green bg-matrix-green/20 text-matrix-green'
+                        : 'border-matrix-darkgreen/50 hover:border-matrix-darkgreen text-matrix-darkgreen hover:text-matrix-green'
+                    }`}
+                  >
+                    <div className={`status-indicator ${getStatusIndicator(cluster.status)}`}></div>
+                    <div className="text-left">
+                      <div className="font-semibold text-sm">{cluster.displayName}</div>
+                      <div className="text-xs opacity-70">{cluster.eventsPerSec} events/s</div>
+                    </div>
+                  </button>
+                ))}
               </div>
-            ))}
-            
-            {/* Data Generator Status */}
-            <div className="border border-matrix-darkgreen rounded p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <Database className="w-6 h-6 text-matrix-green" />
-                <div>
-                  <h3 className="font-semibold text-matrix-green">Data Generator</h3>
-                  <div className="text-xs text-matrix-darkgreen">Event stream production service</div>
-                </div>
-              </div>
-              <div className="flex justify-between items-center">
+              
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <div className={`status-indicator ${getDataGeneratorStatusIndicator(dataGeneratorStatus)}`}></div>
-                  <span className={`text-sm uppercase ${getDataGeneratorStatusColor(dataGeneratorStatus)}`}>
-                    {dataGeneratorStatus}
-                  </span>
+                  <span className="font-semibold">TOPICS</span>
+                  {topicsLoading && (
+                    <div className="animate-spin rounded-full h-4 w-4 border border-matrix-green border-t-transparent"></div>
+                  )}
                 </div>
-                <div className="text-xs text-matrix-darkgreen">
-                  {dataGeneratorStatus === 'running' ? 'Active' : 'Standby'}
+                {dataGenStatus === 'running' && (
+                  <span className="text-xs text-matrix-green bg-matrix-green/20 px-2 py-1 rounded">
+                    LIVE DATA
+                  </span>
+                )}
+              </div>
+              {topicsLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-matrix-green border-t-transparent mx-auto"></div>
+                </div>
+              ) : topics.length === 0 ? (
+                <div className="text-center py-8 text-matrix-darkgreen border border-matrix-darkgreen/30 rounded">
+                  No topics available. Start the data generator.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {topics.map((topic, index) => (
+                    <div key={index} className="space-y-2">
+                      <div 
+                        className={`flex items-center justify-between p-3 border rounded transition-all ${
+                          streamingTopic?.name === topic.name 
+                            ? 'border-matrix-green bg-matrix-green/10' 
+                            : 'border-matrix-darkgreen/50 hover:border-matrix-darkgreen'
+                        }`}
+                      >
+                        <div className="flex-1">
+                          <div className="text-sm font-mono text-matrix-green">{topic.name}</div>
+                          <div className="text-xs text-matrix-darkgreen">{topic.description}</div>
+                        </div>
+                        <div className="text-right ml-4 flex items-center gap-3">
+                          <div>
+                            <div className="text-sm text-matrix-green">{topic.eventsPerSec}/s</div>
+                            <div className="text-xs text-matrix-darkgreen">{topic.cluster}</div>
+                          </div>
+                          {streamingTopic?.name === topic.name ? (
+                            <button 
+                              onClick={stopStreaming}
+                              className="matrix-button text-xs text-red-400 border-red-400 hover:bg-red-400/20 flex items-center gap-1"
+                            >
+                              <div className="status-indicator status-active animate-pulse"></div>
+                              STOP
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => startStreaming(topic)}
+                              className="matrix-button text-xs"
+                            >
+                              STREAM
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {streamingTopic?.name === topic.name && (
+                        <div className="border border-matrix-darkgreen/30 rounded bg-matrix-black/50 ml-4">
+                          <div className="flex items-center justify-between px-3 py-2 border-b border-matrix-darkgreen/30 text-xs">
+                            <div className="flex items-center gap-3">
+                              <Zap className="w-3 h-3 text-matrix-green animate-pulse" />
+                              <span className="text-matrix-green">{streamEvents.length} events</span>
+                              <span className="text-matrix-darkgreen">Partition: {streamEvents[0]?.partition ?? '-'} | Offset: {streamEvents[0]?.offset ?? '-'}</span>
+                            </div>
+                            <span className="text-matrix-darkgreen">
+                              {new Date().toLocaleTimeString()}
+                            </span>
+                          </div>
+                          <div className="max-h-48 overflow-y-auto">
+                            {streamEvents.length === 0 ? (
+                              <div className="px-3 py-4 text-center text-matrix-darkgreen text-xs">
+                                Waiting for events...
+                              </div>
+                            ) : (
+                              <div className="divide-y divide-matrix-darkgreen/20">
+                                {streamEvents.slice(0, 10).map((event, idx) => (
+                                  <div key={event.id} className="px-3 py-2">
+                                    <div className="flex items-center justify-between text-xs mb-1">
+                                      <span className="text-matrix-darkgreen">
+                                        {new Date(event.timestamp).toLocaleTimeString()}
+                                      </span>
+                                      <span className="text-matrix-green/50">
+                                        #{streamEvents.length - idx}
+                                      </span>
+                                    </div>
+                                    <div className="mb-1">
+                                      {renderEventData(topic.name, event.value)}
+                                    </div>
+                                    <details className="mt-1">
+                                      <summary className="text-[10px] text-matrix-darkgreen/60 cursor-pointer hover:text-matrix-green">
+                                        Raw JSON
+                                      </summary>
+                                      <pre className="mt-1 text-[10px] text-matrix-green/50 overflow-x-auto whitespace-pre-wrap bg-matrix-black/50 p-1 rounded">
+                                        {JSON.stringify(event.value, null, 2)}
+                                      </pre>
+                                    </details>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="terminal-window">
+            <div className="terminal-header">
+              <Zap className="w-4 h-4 text-matrix-green" />
+              <span className="ml-2 font-semibold">PROCESSING PIPELINE</span>
+            </div>
+            <div className="terminal-content">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center p-4 border border-matrix-darkgreen rounded">
+                  <Database className="w-8 h-8 text-matrix-green mx-auto mb-2" />
+                  <div className="text-matrix-green font-semibold mb-1">KAFKA</div>
+                  <div className="text-xs text-matrix-darkgreen">Event streaming</div>
+                </div>
+                <div className="text-center p-4 border border-matrix-darkgreen rounded">
+                  <Shield className="w-8 h-8 text-matrix-green mx-auto mb-2" />
+                  <div className="text-matrix-green font-semibold mb-1">AI AGENT</div>
+                  <div className="text-xs text-matrix-darkgreen">Anomaly detection</div>
+                </div>
+                <div className="text-center p-4 border border-matrix-darkgreen rounded">
+                  <Zap className="w-8 h-8 text-matrix-green mx-auto mb-2" />
+                  <div className="text-matrix-green font-semibold mb-1">RAG</div>
+                  <div className="text-xs text-matrix-darkgreen">Knowledge enrichment</div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Recent Activity */}
-      <div className="terminal-window">
-        <div className="terminal-header">
-          <div className="terminal-button bg-matrix-red"></div>
-          <div className="terminal-button bg-yellow-500"></div>
-          <div className="terminal-button bg-matrix-green"></div>
-          <span className="ml-2 font-semibold">RECENT ACTIVITY</span>
-        </div>
-        <div className="terminal-content">
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center gap-3">
-              <span className="text-matrix-darkgreen">[{new Date().toLocaleTimeString()}]</span>
-              <Activity className="w-4 h-4 text-matrix-green" />
-              <span>Data generator {dataGeneratorStatus === 'running' ? 'producing live events' : 'using simulated data'}</span>
+          {lastEvent && (
+            <div className="terminal-window">
+              <div className="terminal-header">
+                <Shield className="w-4 h-4 text-red-400" />
+                <span className="ml-2 font-semibold text-red-400">LATEST ANOMALY</span>
+              </div>
+              <div className="terminal-content">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-matrix-darkgreen">Source:</span>
+                    <span className="text-matrix-green font-mono text-sm">{lastEvent.source}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-matrix-darkgreen">Severity:</span>
+                    <span className={`uppercase ${
+                      lastEvent.severity === 'high' ? 'text-red-400' : 
+                      lastEvent.severity === 'medium' ? 'text-yellow-400' : 'text-matrix-green'
+                    }`}>{lastEvent.severity}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-matrix-darkgreen">Confidence:</span>
+                    <span className="text-matrix-green">{Math.round(lastEvent.confidence * 100)}%</span>
+                  </div>
+                  <div className="mt-2">
+                    <div className="text-matrix-darkgreen text-xs mb-1">Description:</div>
+                    <div className="text-sm text-matrix-green">{lastEvent.description}</div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-matrix-darkgreen">[{new Date(Date.now() - 5000).toLocaleTimeString()}]</span>
-              <Shield className="w-4 h-4 text-matrix-red" />
-              <span>Anomaly detected in subway commuter density</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-matrix-darkgreen">[{new Date(Date.now() - 10000).toLocaleTimeString()}]</span>
-              <Network className="w-4 h-4 text-matrix-green" />
-              <span>KEG virtual cluster sync completed</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-matrix-darkgreen">[{new Date(Date.now() - 15000).toLocaleTimeString()}]</span>
-              <Eye className="w-4 h-4 text-matrix-green" />
-              <span>Sentinel agent performing routine scan</span>
-            </div>
-          </div>
-        </div>
-      </div>
+          )}
+        </>
+      )}
     </div>
   );
 };
