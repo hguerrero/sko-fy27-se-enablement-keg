@@ -7,6 +7,81 @@ A Matrix-themed demonstration of [Kong Event Gateway (KEG)](https://docs.konghq.
 ## Architecture
 
 ```
+                            AI Agent & RAG Event Flow Architecture
+                            
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Data Gen      │    │   Matrix UI     │    │   CLI User      │
+│  TypeScript     │    │  React Frontend │    │  Direct Cmds    │
+└─────┬───────────┘    └─────┬───────────┘    └─────┬───────────┘
+      │ produces             │ chat queries         │ direct commands
+      ▼                      ▼                      ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         Event Streams (Kafka via KEG)                   │
+│                                                                         │
+│  🚕 yellow_cab_dispatch     🚇 subway_commuter_density                   │
+│  ⚡ ev_charging_logs        🏭 system_machine_status                     │
+│  🚨 anomaly_detection_pings    🧠 knowledge_ingestion                    │
+└─────┬─────────────────┬─────────────────┬─────────────────┬─────────────┘
+      │                 │ consumes        │                 │
+      │                 ▼                 │                 │
+      │    ┌─────────────────────────┐     │                 │
+      │    │   🔍 Anomaly Detector   │     │                 │
+      │    │   Event Processing      │     │                 │
+      │    │        Loop             │     │                 │
+      │    └──────────┬──────────────┘     │                 │
+      │               │ analyze            │                 │
+      │               ▼                    │                 │
+      │    ┌─────────────────────────┐     │                 │
+      │    │   🤖 OpenAI GPT-4o     │     │                 │
+      │    │   LLM Classification    │     │                 │
+      │    └──────────┬──────────────┘     │                 │
+      │               │ enriched result    │                 │
+      │               ▼                    │                 │
+      │    ┌─────────────────────────┐     │                 │
+      │    │   Dual Output:          │     │                 │
+      │    │   ├─ Trigger Events ────┼─────┘                 │ triggers
+      │    │   └─ Enriched Context ──┼───────────────────────┼─────────┐
+      │    └─────────────────────────┘                       │         │
+      │                                                      ▼         │
+      │                          ┌─────────────────────────────┐       │
+      │                          │   👁️ Sentinel Agent        │       │
+      │                          │   Reactive Intelligence     │       │
+      │                          └─────────────────────────────┘       │
+      │                                                                │ embed & store
+      │                                                                ▼
+      │    ┌─────────────────────────────────────────────────────────────────┐
+      │    │                    RAG Knowledge System                        │
+      │    │   ┌───────────────┐    ┌─────────────────────────────────┐     │
+      │    │   │ 📊 Nomic      │    │        Kong AI Gateway          │     │
+      │    │   │ Embed Text    │───▶│  🛡️ AI Proxy                   │     │
+      │    │   │ Model         │    │  🎯 RAG Injector                │     │
+      │    │   └───────────────┘    └─────────┬───────────────────────┘     │
+      │    │   ┌─────────────────────────┐    │ semantic search             │
+      │    │   │   🧠 Redis Vector DB    │◀───┘                             │
+      │    │   │   Semantic Search       │                                  │
+      │    │   └─────────────────────────┘                                  │
+      │    └─────────────────────────────────────────────────────────────────┘
+      │                                  │ contextual response
+      │                                  ▼
+      └──────────────────────────────────────────────────────────────────────┘
+
+
+Key Flows:
+==========
+
+Event Processing Pipeline:
+1. Consume events → 2. LLM analysis → 3. Dual publish → 4. Knowledge extraction → 5. Agent triggering
+
+RAG Enhancement Flow:  
+A. User query → B. Context retrieval → C. Enhanced prompt → D. Informed response
+
+Legend:
+-------
+🔍 = Anomaly Detection    🧠 = Knowledge/Intelligence    🚨 = Alerts/Triggers
+🌋 = LLM Processing      🛡️ = Security/Proxy           🎯 = Enhancement/Injection
+```
+
+```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                     Kong Event Gateway (KEG)                        │
 │                                                                     │

@@ -1,7 +1,8 @@
 services:
   kong:
     image: kong/kong-gateway:3.13
-    container_name: kong
+    hostname: kong
+    # container_name: kong
     ports:
       - "8000:8000"
       - "8001:8001"
@@ -24,14 +25,16 @@ services:
 
   redis:
     image: redis/redis-stack:7.4.0-v0
-    container_name: redis
+    # container_name: redis
+    hostname: redis
     ports:
       - "6379:6379"
     restart: unless-stopped
 
   ollama:
     image: ollama/ollama:latest
-    container_name: ollama
+    # container_name: ollama
+    hostname: ollama
     ports:
       # Expose Ollama API on host port 11434
       - "11434:11434"
