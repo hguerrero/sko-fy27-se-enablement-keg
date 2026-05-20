@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { Database, Play, Pause, Shield, Zap, Server, Send, X } from 'lucide-react';
+import { Database, Play, Pause, Shield, Zap, Server, Send, X, Brain, Activity, FileText, ChevronRight } from 'lucide-react';
 
 interface Cluster {
   id: string;
@@ -30,6 +30,32 @@ interface StreamEvent {
   value: any;
 }
 
+interface ProcessingEvent {
+  id: string;
+  step: 'received' | 'analyzing' | 'analyzed' | 'enriched';
+  topic: string;
+  partition?: number;
+  offset?: string;
+  timestamp: string;
+  status: string;
+  rawEvent?: string;
+  isAnomaly?: boolean;
+  severity?: string;
+}
+
+interface ActivePipeline {
+  id: string;
+  received: boolean;
+  analyzing: boolean;
+  analyzed: boolean;
+  enriched: boolean;
+  isAnomaly?: boolean;
+  severity?: string;
+  rawEvent?: string;
+  topic: string;
+  timestamp: string;
+}
+
 const Dashboard: React.FC = () => {
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [selectedCluster, setSelectedCluster] = useState<string>('');
@@ -38,6 +64,9 @@ const Dashboard: React.FC = () => {
   const [topicsLoading, setTopicsLoading] = useState(false);
   const [dataGenStatus, setDataGenStatus] = useState<'stopped' | 'running' | 'starting' | 'stopping' | 'error'>('stopped');
   const [lastEvent, setLastEvent] = useState<any>(null);
+  const [, setProcessingHistory] = useState<ProcessingEvent[]>([]);
+  const [activePipelines, setActivePipelines] = useState<Map<string, ActivePipeline>>(new Map());
+  const wsRef = useRef<WebSocket | null>(null);
   
   const [streamingTopic, setStreamingTopic] = useState<Topic | null>(null);
   const [streamEvents, setStreamEvents] = useState<StreamEvent[]>([]);
@@ -48,6 +77,93 @@ const Dashboard: React.FC = () => {
   const [customPayload, setCustomPayload] = useState('');
   const [isProducing, setIsProducing] = useState(false);
   const [produceStatus, setProduceStatus] = useState<string>('');
+
+  // WebSocket for real-time processing events
+  useEffect(() => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//localhost:3001`);
+    wsRef.current = ws;
+
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        if (message.type === 'processing_event') {
+          const procEvent = message.data as ProcessingEvent;
+          
+          // Update active pipelines
+          setActivePipelines(prev => {
+            const updated = new Map(prev);
+            const pipeline = updated.get(procEvent.id) || {
+              id: procEvent.id,
+              received: false,
+              analyzing: false,
+              analyzed: false,
+              enriched: false,
+              topic: procEvent.topic,
+              timestamp: procEvent.timestamp
+            };
+
+            switch (procEvent.step) {
+              case 'received':
+                pipeline.received = true;
+                pipeline.timestamp = procEvent.timestamp;
+                pipeline.rawEvent = procEvent.rawEvent;
+                break;
+              case 'analyzing':
+                pipeline.analyzing = true;
+                pipeline.timestamp = procEvent.timestamp;
+                break;
+              case 'analyzed':
+                pipeline.analyzed = true;
+                pipeline.isAnomaly = procEvent.isAnomaly;
+                pipeline.severity = procEvent.severity;
+                pipeline.timestamp = procEvent.timestamp;
+                break;
+              case 'enriched':
+                pipeline.enriched = true;
+                pipeline.timestamp = procEvent.timestamp;
+                break;
+            }
+
+            updated.set(procEvent.id, pipeline);
+            return updated;
+          });
+
+          // Add to history
+          setProcessingHistory(prev => [procEvent, ...prev.slice(0, 49)]);
+        }
+      } catch (e) {
+        console.error('Failed to parse WebSocket message:', e);
+      }
+    };
+
+    // Fetch initial processing events
+    fetch('http://localhost:3001/api/processing-events')
+      .then(res => res.json())
+      .then(data => setProcessingHistory(data))
+      .catch(console.error);
+
+    return () => {
+      ws.close();
+    };
+  }, []);
+
+  // Clean up completed pipelines after a delay
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActivePipelines(prev => {
+        const updated = new Map(prev);
+        const now = Date.now();
+        updated.forEach((pipeline, id) => {
+          if (pipeline.enriched && now - new Date(pipeline.timestamp).getTime() > 5000) {
+            updated.delete(id);
+          }
+        });
+        return updated;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const getDefaultPayload = () => {
     const timestamp = new Date().toISOString();
@@ -519,27 +635,100 @@ const Dashboard: React.FC = () => {
 
           <div className="terminal-window">
             <div className="terminal-header">
-              <Zap className="w-4 h-4 text-matrix-green" />
-              <span className="ml-2 font-semibold">PROCESSING PIPELINE</span>
+              <Brain className="w-4 h-4 text-matrix-green" />
+              <span className="ml-2 font-semibold">ANOMALY DETECTOR AGENT</span>
+              <div className="ml-auto flex items-center gap-3">
+                <span className="text-xs text-matrix-darkgreen">
+                  {activePipelines.size > 0 ? `${activePipelines.size} active` : 'idle'}
+                </span>
+                <div className={`status-indicator ${dataGenStatus === 'running' ? 'status-active' : 'status-inactive'}`}></div>
+              </div>
             </div>
             <div className="terminal-content">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center p-4 border border-matrix-darkgreen rounded">
-                  <Database className="w-8 h-8 text-matrix-green mx-auto mb-2" />
-                  <div className="text-matrix-green font-semibold mb-1">KAFKA</div>
-                  <div className="text-xs text-matrix-darkgreen">Event streaming</div>
+              {activePipelines.size === 0 ? (
+                <div className="text-center py-8 text-matrix-darkgreen">
+                  <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>Start the data generator to see event processing</p>
                 </div>
-                <div className="text-center p-4 border border-matrix-darkgreen rounded">
-                  <Shield className="w-8 h-8 text-matrix-green mx-auto mb-2" />
-                  <div className="text-matrix-green font-semibold mb-1">AI AGENT</div>
-                  <div className="text-xs text-matrix-darkgreen">Anomaly detection</div>
+              ) : (
+                <div className="space-y-3">
+                  {Array.from(activePipelines.values()).reverse().slice(0, 5).map((pipeline) => (
+                    <div 
+                      key={pipeline.id} 
+                      className={`border rounded p-3 ${
+                        pipeline.isAnomaly 
+                          ? 'border-red-400/50 bg-red-400/5' 
+                          : 'border-matrix-darkgreen bg-matrix-darkgreen/5'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-matrix-darkgreen font-mono">
+                            {pipeline.topic.split('.').pop()}
+                          </span>
+                          <span className="text-xs text-matrix-darkgreen">
+                            {new Date(pipeline.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        {pipeline.isAnomaly !== undefined && (
+                          <span className={`text-xs uppercase font-bold ${
+                            pipeline.isAnomaly 
+                              ? 'text-red-400' 
+                              : 'text-matrix-green'
+                          }`}>
+                            {pipeline.isAnomaly ? `ANOMALY ${pipeline.severity?.toUpperCase()}` : 'NORMAL'}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-1 text-xs">
+                        <div className={`flex items-center gap-1 px-2 py-1 rounded ${
+                          pipeline.received ? 'bg-matrix-green/20 text-matrix-green' : 'bg-matrix-darkgreen/20 text-matrix-darkgreen'
+                        }`}>
+                          <Database className="w-3 h-3" />
+                          RECEIVED
+                        </div>
+                        <ChevronRight className="w-3 h-3 text-matrix-darkgreen" />
+                        <div className={`flex items-center gap-1 px-2 py-1 rounded ${
+                          pipeline.analyzing ? 'bg-matrix-yellow/20 text-matrix-yellow animate-pulse' : 
+                          pipeline.analyzed ? 'bg-matrix-green/20 text-matrix-green' :
+                          'bg-matrix-darkgreen/20 text-matrix-darkgreen'
+                        }`}>
+                          <Brain className="w-3 h-3" />
+                          ANALYZING
+                        </div>
+                        <ChevronRight className="w-3 h-3 text-matrix-darkgreen" />
+                        <div className={`flex items-center gap-1 px-2 py-1 rounded ${
+                          pipeline.analyzed ? 'bg-matrix-green/20 text-matrix-green' :
+                          'bg-matrix-darkgreen/20 text-matrix-darkgreen'
+                        }`}>
+                          <Shield className="w-3 h-3" />
+                          {pipeline.isAnomaly ? 'TRIGGER' : 'LOG'}
+                        </div>
+                        <ChevronRight className="w-3 h-3 text-matrix-darkgreen" />
+                        <div className={`flex items-center gap-1 px-2 py-1 rounded ${
+                          pipeline.enriched ? 'bg-matrix-green/20 text-matrix-green' :
+                          'bg-matrix-darkgreen/20 text-matrix-darkgreen'
+                        }`}>
+                          <FileText className="w-3 h-3" />
+                          ENRICHED
+                        </div>
+                      </div>
+
+                      {pipeline.rawEvent && (
+                        <details className="mt-2">
+                          <summary className="text-[10px] text-matrix-darkgreen/60 cursor-pointer hover:text-matrix-green">
+                            Raw Event
+                          </summary>
+                          <pre className="mt-1 text-[10px] text-matrix-green/50 overflow-x-auto whitespace-pre-wrap bg-matrix-black/50 p-1 rounded max-h-24">
+                            {pipeline.rawEvent}
+                          </pre>
+                        </details>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                <div className="text-center p-4 border border-matrix-darkgreen rounded">
-                  <Zap className="w-8 h-8 text-matrix-green mx-auto mb-2" />
-                  <div className="text-matrix-green font-semibold mb-1">RAG</div>
-                  <div className="text-xs text-matrix-darkgreen">Knowledge enrichment</div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 

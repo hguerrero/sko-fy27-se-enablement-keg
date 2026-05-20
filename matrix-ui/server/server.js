@@ -59,6 +59,34 @@ let anomalies = [
 
 let sentinelScans = [];
 
+// Anomaly detector processing events
+let processingEvents = [];
+const MAX_PROCESSING_EVENTS = 50;
+
+// Helper to broadcast processing events
+function broadcastProcessingEvent(event) {
+  processingEvents.unshift(event);
+  if (processingEvents.length > MAX_PROCESSING_EVENTS) {
+    processingEvents.pop();
+  }
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ type: "processing_event", data: event }));
+    }
+  });
+}
+
+// API: Get processing events
+app.get("/api/processing-events", (req, res) => {
+  res.json(processingEvents);
+});
+
+// API: Clear processing events
+app.post("/api/processing-events/clear", (req, res) => {
+  processingEvents = [];
+  res.json({ message: "Processing events cleared" });
+});
+
 // Real-time data generation
 const generateRealtimeData = () => {
   return {
@@ -95,6 +123,93 @@ wss.on("connection", (ws) => {
     console.log("WebSocket connection closed");
   });
 });
+
+// Simulate anomaly detector processing
+let anomalyDetectorRunning = false;
+
+async function startAnomalyDetectorConsumer() {
+  if (anomalyDetectorRunning) return;
+  anomalyDetectorRunning = true;
+
+  const kafka = kafkaConnections.machine_core;
+  const consumer = kafka.consumer({ groupId: "matrix-ui-anomaly-detector" });
+  
+  try {
+    await consumer.connect();
+    await consumer.subscribe({ topic: "WORLD_NY_1999.subway_commuter_density", fromBeginning: false });
+    
+    console.log("Anomaly detector consumer started");
+    
+    await consumer.run({
+      eachMessage: async ({ topic, partition, message }) => {
+        const rawValue = message.value?.toString();
+        if (!rawValue) return;
+
+        const eventId = `proc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Step 1: Event Received
+        broadcastProcessingEvent({
+          id: eventId,
+          step: "received",
+          topic,
+          partition,
+          offset: message.offset,
+          timestamp: new Date().toISOString(),
+          rawEvent: rawValue,
+          status: "processing"
+        });
+
+        // Simulate LLM Analysis
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        broadcastProcessingEvent({
+          id: eventId,
+          step: "analyzing",
+          topic,
+          timestamp: new Date().toISOString(),
+          status: "analyzing"
+        });
+
+        // Simulate analysis result
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        const isAnomaly = Math.random() > 0.7; // 30% chance of anomaly
+        const severity = ["low", "medium", "high", "critical"][Math.floor(Math.random() * 4)];
+        
+        broadcastProcessingEvent({
+          id: eventId,
+          step: "analyzed",
+          topic,
+          timestamp: new Date().toISOString(),
+          isAnomaly,
+          severity,
+          status: isAnomaly ? "anomaly" : "normal"
+        });
+
+        // Simulate RAG Ingestion
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        broadcastProcessingEvent({
+          id: eventId,
+          step: "enriched",
+          topic,
+          timestamp: new Date().toISOString(),
+          status: "completed"
+        });
+      }
+    });
+  } catch (error) {
+    console.error("Anomaly detector consumer error:", error);
+    anomalyDetectorRunning = false;
+  }
+}
+
+// Start the consumer when data generator is running
+setInterval(() => {
+  if (dataGeneratorStatus === "running" && !anomalyDetectorRunning) {
+    startAnomalyDetectorConsumer();
+  }
+}, 5000);
 
 // Fetch real events from Kafka topics
 async function fetchKafkaEvents(clusterId, topicName, limit = 10) {
