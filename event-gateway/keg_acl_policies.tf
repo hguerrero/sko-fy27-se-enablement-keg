@@ -3,7 +3,7 @@
 # ============================================================================
 
 resource "konnect_event_gateway_cluster_policy_acls" "acl_sim_1999_ny" {
-  provider           = konnect-beta
+  provider           = konnect
   name               = "acl_sim_1999_ny"
   description        = "ACL policy for ensuring access to topics based on principals"
   gateway_id         = konnect_event_gateway.event_gateway_terraform.id
@@ -53,7 +53,7 @@ resource "konnect_event_gateway_cluster_policy_acls" "acl_sim_1999_ny" {
 }
 
 resource "konnect_event_gateway_cluster_policy_acls" "acl_sim_2026_la" {
-  provider           = konnect-beta
+  provider           = konnect
   name               = "acl_sim_2026_la"
   description        = "ACL policy for ensuring access to topics based on principals"
   gateway_id         = konnect_event_gateway.event_gateway_terraform.id
@@ -92,7 +92,7 @@ resource "konnect_event_gateway_cluster_policy_acls" "acl_sim_2026_la" {
 }
 
 resource "konnect_event_gateway_cluster_policy_acls" "acl_sim_2026_la_rebels" {
-  provider           = konnect-beta
+  provider           = konnect
   name               = "acl_sim_2026_la_rebels"
   description        = "ACL policy for ensuring access to topics based on principals"
   gateway_id         = konnect_event_gateway.event_gateway_terraform.id

@@ -18,13 +18,14 @@ resource "docker_container" "keg_data_plane" {
   image = docker_image.keg.image_id
 
   env = [
-    "KONNECT_REGION=${var.konnect_region}",
-    "KONNECT_DOMAIN=${var.konnect_domain}",
-    "KONNECT_GATEWAY_CLUSTER_ID=${konnect_event_gateway.event_gateway_terraform.id}",
-    "KONNECT_CLIENT_CERT=${tls_self_signed_cert.keg_data_plane.cert_pem}",
-    "KONNECT_CLIENT_KEY=${tls_private_key.keg_data_plane.private_key_pem}",
-    "KAFKA_USERNAME=${var.kafka_username}",
-    "KAFKA_PASSWORD=${var.kafka_password}",
+    "KONG_KONNECT_REGION=${var.konnect_region}",
+    "KONG_KONNECT_DOMAIN=${var.konnect_domain}",
+    "KONG_KONNECT_GATEWAY_CLUSTER_ID=${konnect_event_gateway.event_gateway_terraform.id}",
+    "KONG_KONNECT_CLIENT_CERT=${tls_self_signed_cert.keg_data_plane.cert_pem}",
+    "KONG_KONNECT_CLIENT_KEY=${tls_private_key.keg_data_plane.private_key_pem}",
+    # Uncomment and declare var.kafka_username / var.kafka_password when using SASL auth:
+    # "KAFKA_USERNAME=${var.kafka_username}",
+    # "KAFKA_PASSWORD=${var.kafka_password}",
     "KEG__OBSERVABILITY__LOG_FLAGS=info,keg=debug",
     # "SENTINAL_ENCRYPTION_KEY=${random_bytes.sentinal_encryption_key.base64}"
   ]

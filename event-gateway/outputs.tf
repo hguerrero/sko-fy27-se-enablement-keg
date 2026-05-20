@@ -12,3 +12,10 @@ output "event_gateway_name" {
   value       = konnect_event_gateway.event_gateway_terraform.name
 }
 
+# Sentinel Encryption Key Output
+output "sentinal_encryption_key_value" {
+  description = "The base64-encoded Sentinel encryption key value (provided or generated)"
+  value       = local.effective_encryption_key
+  sensitive   = true
+}
+

@@ -2,9 +2,9 @@ terraform {
   required_version = ">= 1.0"
 
   required_providers {
-    konnect-beta = {
-      source  = "Kong/konnect-beta"
-      version = "~> 0.14.0"
+    konnect = {
+      source  = "Kong/konnect"
+      version = "~> 3.15"
     }
     tls = {
       source  = "hashicorp/tls"

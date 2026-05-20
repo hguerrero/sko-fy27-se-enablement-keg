@@ -43,7 +43,7 @@ resource "local_file" "keg_data_plane_key" {
 
 # Create KEG data plane certificate in Konnect
 resource "konnect_event_gateway_data_plane_certificate" "keg_data_plane_cert" {
-  provider    = konnect-beta
+  provider    = konnect
   certificate = tls_self_signed_cert.keg_data_plane.cert_pem
   gateway_id  = konnect_event_gateway.event_gateway_terraform.id
   name        = "KEG Data Plane Certificate"

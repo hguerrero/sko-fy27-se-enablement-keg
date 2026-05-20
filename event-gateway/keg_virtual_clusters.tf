@@ -3,7 +3,7 @@
 # ============================================================================
 
 resource "konnect_event_gateway_virtual_cluster" "sim_1999_ny" {
-  provider    = konnect-beta
+  provider    = konnect
   name        = "Sim_1999_New_York"
   description = "Simulation layer replicating late 20th-century New York. Primary interface for bluepill event streams and anomaly detection feeds."
   gateway_id  = konnect_event_gateway.event_gateway_terraform.id
@@ -45,15 +45,13 @@ resource "konnect_event_gateway_virtual_cluster" "sim_1999_ny" {
     }
   }
 
-  authentication = [{anonymous = {
-
-  }}]
+  authentication = [{ anonymous = {} }]
 
   depends_on = [konnect_event_gateway.event_gateway_terraform, konnect_event_gateway_backend_cluster.backend_cluster]
 }
 
 resource "konnect_event_gateway_virtual_cluster" "sim_2026_la" {
-  provider    = konnect-beta
+  provider    = konnect
   name        = "Sim_2024_Los_Angeles"
   description = "Simulation layer replicating mid-2020s Los Angeles. Handles redpill recruitment signals and resistance cell coordination events."
   gateway_id  = konnect_event_gateway.event_gateway_terraform.id
@@ -96,9 +94,7 @@ resource "konnect_event_gateway_virtual_cluster" "sim_2026_la" {
   }
 
   authentication = [
-    {anonymous = {
-
-    }},
+    { anonymous = {} },
     {
       sasl_plain = {
         mediation = "terminate"
@@ -116,7 +112,7 @@ resource "konnect_event_gateway_virtual_cluster" "sim_2026_la" {
 }
 
 resource "konnect_event_gateway_virtual_cluster" "machine_city_core" {
-  provider    = konnect-beta
+  provider    = konnect
   name        = "Machine_City_Core"
   description = "Central nervous system of the Machine City. Processes sentinel telemetry, power grid metrics, and pod lifecycle events. Highest clearance required."
   gateway_id  = konnect_event_gateway.event_gateway_terraform.id
@@ -135,9 +131,7 @@ resource "konnect_event_gateway_virtual_cluster" "machine_city_core" {
   acl_mode  = "passthrough"
   dns_label = "machine-city-core"
 
-  authentication = [{anonymous = {
-
-  }}]
+  authentication = [{ anonymous = {} }]
 
   # namespace = {
   #   prefix = "sko."

@@ -14,6 +14,7 @@ variable "konnect_token" {
   sensitive   = true
 }
 
+
 # ============================================================================
 # Event Gateway Configuration
 # ============================================================================
@@ -50,23 +51,24 @@ variable "konnect_domain" {
   default     = "konghq.com"
 }
 
-variable "kafka_username" {
-  type        = string
-  description = "Kafka username for backend cluster authentication"
-  sensitive   = true
-}
-
-variable "kafka_password" {
-  type        = string
-  description = "Kafka password for backend cluster authentication"
-  sensitive   = true
-}
-
-# variable "sentinal_encryption_key" {
+# variable "kafka_username" {
 #   type        = string
-#   description = "Encryption key for record encryption"
+#   description = "Kafka username for backend cluster authentication"
 #   sensitive   = true
 # }
+
+# variable "kafka_password" {
+#   type        = string
+#   description = "Kafka password for backend cluster authentication"
+#   sensitive   = true
+# }
+
+variable "sentinel_encryption_key" {
+  description = "Base64-encoded encryption key. If not set, a random key will be generated."
+  type        = string
+  sensitive   = true
+  default     = null
+}
 
 # ============================================================================
 # Authentication Configuration

@@ -3,7 +3,7 @@
 # ============================================================================
 
 resource "konnect_event_gateway_schema_registry" "apicurio_schema_registry" {
-  provider   = konnect-beta
+  provider   = konnect
   gateway_id = konnect_event_gateway.event_gateway_terraform.id
 
   confluent = {
@@ -26,7 +26,7 @@ resource "konnect_event_gateway_schema_registry" "apicurio_schema_registry" {
 }
 
 resource "konnect_event_gateway_produce_policy_schema_validation" "system_produce_schema_validation" {
-  provider           = konnect-beta
+  provider           = konnect
   name               = "system-produce-schema-validation"
   description        = "Enforces JSON schema validation on system_machine_status produce requests. Rejects non-conformant payloads to preserve data integrity across the Machine City telemetry pipeline."
   gateway_id         = konnect_event_gateway.event_gateway_terraform.id
@@ -47,9 +47,7 @@ resource "konnect_event_gateway_produce_policy_schema_validation" "system_produc
       value_validation_action = "reject"
 
       schema_registry = {
-        schema_registry_reference_by_id = {
-          id = konnect_event_gateway_schema_registry.apicurio_schema_registry.id
-        }
+        id = konnect_event_gateway_schema_registry.apicurio_schema_registry.id
       }
     }
   }
